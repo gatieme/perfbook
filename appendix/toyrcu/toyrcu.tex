@@ -1,66 +1,54 @@
 % appendix/toyrcu/toyrcu.tex
+% mainfile: ../../perfbook.tex
+% SPDX-License-Identifier: CC-BY-SA-3.0
 
-\QuickQuizChapter{chp:app:``Toy'' RCU Implementations}{``Toy'' RCU Implementations}
+\QuickQuizChapter{chp:app:``Toy'' RCU Implementations}{``Toy'' RCU Implementations}{qqztoyrcu}
+%
+\Epigraph{The only difference between men and boys is the price of their toys.}
+	 {\emph{M. H\'ebert}}
+% https://www.ncbi.nlm.nih.gov/pubmed/11548147
 
-The toy RCU implementations in this section are designed not for
+The toy RCU implementations in this appendix are designed not for
 high performance, practicality, or any kind of production use,\footnote{
 	However, production-quality user-level RCU implementations
 	are available~\cite{MathieuDesnoyers2009URCU,MathieuDesnoyers2012URCU}.}
 but rather for clarity.
 Nevertheless, you will need a thorough understanding of
-Chapters~\ref{chp:Introduction},
-\ref{chp:Hardware and its Habits},
-\ref{chp:Tools of the Trade},
-\ref{cha:Partitioning and Synchronization Design},
-and~\ref{chp:Deferred Processing}
+\cref{chp:Introduction,%
+chp:Hardware and its Habits,%
+chp:Tools of the Trade,%
+cha:Partitioning and Synchronization Design,%
+chp:Deferred Processing}
 for even these toy RCU implementations to be easily understandable.
 
-This section provides a series of RCU implementations in order of
+This appendix provides a series of RCU implementations in order of
 increasing sophistication, from the viewpoint of solving the
 existence-guarantee problem.
-Section~\ref{sec:app:toyrcu:Lock-Based RCU} presents a rudimentary
+\Cref{sec:app:toyrcu:Lock-Based RCU} presents a rudimentary
 RCU implementation based on simple locking, while
-Sections~\ref{sec:app:toyrcu:Per-Thread Lock-Based RCU} through
-\ref{sec:app:toyrcu:RCU Based on Quiescent States}
+\crefthro{sec:app:toyrcu:Per-Thread Lock-Based RCU}
+{sec:app:toyrcu:RCU Based on Quiescent States}
 present a series of
 simple RCU implementations based on locking, reference counters,
 and free-running counters.
-Finally, Section~\ref{sec:app:toyrcu:Summary of Toy RCU Implementations}
+Finally, \cref{sec:app:toyrcu:Summary of Toy RCU Implementations}
 provides a summary and a list of desirable RCU properties.
 
 \section{Lock-Based RCU}
 \label{sec:app:toyrcu:Lock-Based RCU}
 
-\begin{figure}[bp]
-{ \scriptsize
-\begin{verbbox}
-  1 static void rcu_read_lock(void)
-  2 {
-  3   spin_lock(&rcu_gp_lock);
-  4 }
-  5
-  6 static void rcu_read_unlock(void)
-  7 {
-  8   spin_unlock(&rcu_gp_lock);
-  9 }
- 10
- 11 void synchronize_rcu(void)
- 12 {
- 13   spin_lock(&rcu_gp_lock);
- 14   spin_unlock(&rcu_gp_lock);
- 15 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Lock-Based RCU Implementation}
-\label{fig:app:toyrcu:Lock-Based RCU Implementation}
-\end{figure}
-
 Perhaps the simplest RCU implementation leverages locking, as
 shown in
-Figure~\ref{fig:app:toyrcu:Lock-Based RCU Implementation}
+\cref{lst:app:toyrcu:Lock-Based RCU Implementation}
 (\path{rcu_lock.h} and \path{rcu_lock.c}).
+
+\begin{listing}
+\input{CodeSamples/defer/rcu_lock@lock_unlock.fcv}\vspace*{-11pt}\fvset{firstnumber=last}
+\input{CodeSamples/defer/rcu_lock@synchronize.fcv}\fvset{firstnumber=auto}
+\caption{Lock-Based RCU Implementation}
+\label{lst:app:toyrcu:Lock-Based RCU Implementation}
+\end{listing}
+
 In this implementation, \co{rcu_read_lock()} acquires a global
 spinlock, \co{rcu_read_unlock()} releases it, and
 \co{synchronize_rcu()} acquires it then immediately releases it.
@@ -70,80 +58,83 @@ Because \co{synchronize_rcu()} does not return until it has acquired
 critical sections have completed, thus faithfully implementing
 RCU semantics.
 Of course, only one RCU reader may be in its read-side critical section
-at a time, which almost entirely defeats the purpose of RCU.
+at a time, which almost entirely defeats the purpose of RCU\@.
 In addition, the lock operations in \co{rcu_read_lock()} and
 \co{rcu_read_unlock()} are extremely heavyweight,
-with read-side overhead ranging from about 100~nanoseconds on a single Power5
+with read-side overhead ranging from about 100~nanoseconds on a single \Power{5}
 CPU up to more than 17~\emph{microseconds} on a 64-CPU system.
 Worse yet,
 these same lock operations permit \co{rcu_read_lock()}
-to participate in deadlock cycles.
+to participate in \IXpl{deadlock cycle}.
 Furthermore, in absence of recursive locks,
 RCU read-side critical sections cannot be nested, and, finally,
 although concurrent RCU updates could in principle be satisfied by
 a common grace period, this implementation serializes grace periods,
 preventing grace-period sharing.
 
-\QuickQuiz{}
+\QuickQuizSeries{%
+\QuickQuizB{
 	Why wouldn't any deadlock in the RCU implementation in
-	Figure~\ref{fig:app:toyrcu:Lock-Based RCU Implementation}
+	\cref{lst:app:toyrcu:Lock-Based RCU Implementation}
 	also be a deadlock in any other RCU implementation?
-\QuickQuizAnswer{
-%
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 void foo(void)
-  2 {
-  3   spin_lock(&my_lock);
-  4   rcu_read_lock();
-  5   do_something();
-  6   rcu_read_unlock();
-  7   do_something_else();
-  8   spin_unlock(&my_lock);
-  9 }
- 10
- 11 void bar(void)
- 12 {
- 13   rcu_read_lock();
- 14   spin_lock(&my_lock);
- 15   do_some_other_thing();
- 16   spin_unlock(&my_lock);
- 17   do_whatever();
- 18   rcu_read_unlock();
- 19 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Deadlock in Lock-Based RCU Implementation}
-\label{fig:app:toyrcu:Deadlock in Lock-Based RCU Implementation}
-\end{figure}
-%
+}\QuickQuizAnswerB{
+	\begin{fcvref}[ln:app:toyrcu:Deadlock in Lock-Based RCU Implementation]
 	Suppose the functions \co{foo()} and \co{bar()} in
-	Figure~\ref{fig:app:toyrcu:Deadlock in Lock-Based RCU Implementation}
+	\cref{lst:app:toyrcu:Deadlock in Lock-Based RCU Implementation}
 	are invoked concurrently from different CPUs.
-	Then \co{foo()} will acquire \co{my_lock()} on line~3,
+	Then \co{foo()} will acquire \co{my_lock()} on \clnref{foo:acq},
 	while \co{bar()} will acquire \co{rcu_gp_lock} on
-	line~13.
-	When \co{foo()} advances to line~4, it will attempt to
+	\clnref{bar:rrl}.
+	\end{fcvref}
+
+\begin{listing}
+\begin{fcvlabel}[ln:app:toyrcu:Deadlock in Lock-Based RCU Implementation]
+\begin{VerbatimL}[commandchars=\\\[\]]
+void foo(void)
+{
+	spin_lock(&my_lock);		\lnlbl[foo:acq]
+	rcu_read_lock();		\lnlbl[foo:rrl]
+	do_something();
+	rcu_read_unlock();
+	do_something_else();
+	spin_unlock(&my_lock);
+}
+
+void bar(void)
+{
+	rcu_read_lock();		\lnlbl[bar:rrl]
+	spin_lock(&my_lock);		\lnlbl[bar:acq]
+	do_some_other_thing();
+	spin_unlock(&my_lock);
+	do_whatever();
+	rcu_read_unlock();
+}
+\end{VerbatimL}
+\end{fcvlabel}
+\caption{Deadlock in Lock-Based RCU Implementation}
+\label{lst:app:toyrcu:Deadlock in Lock-Based RCU Implementation}
+\end{listing}
+
+	\begin{fcvref}[ln:app:toyrcu:Deadlock in Lock-Based RCU Implementation]
+	When \co{foo()} advances to \clnref{foo:rrl}, it will attempt to
 	acquire \co{rcu_gp_lock}, which is held by \co{bar()}.
-	Then when \co{bar()} advances to line~14, it will attempt
+	Then when \co{bar()} advances to \clnref{bar:acq}, it will attempt
 	to acquire \co{my_lock}, which is held by \co{foo()}.
+	\end{fcvref}
 
 	Each function is then waiting for a lock that the other
 	holds, a classic deadlock.
 
 	Other RCU implementations neither spin nor block in
 	\co{rcu_read_lock()}, hence avoiding deadlocks.
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndB
+%
+\QuickQuizE{
 	Why not simply use reader-writer locks in the RCU implementation
 	in
-	Figure~\ref{fig:app:toyrcu:Lock-Based RCU Implementation}
+	\cref{lst:app:toyrcu:Lock-Based RCU Implementation}
 	in order to allow RCU readers to proceed in parallel?
-\QuickQuizAnswer{
+}\QuickQuizAnswerE{
 	One could in fact use reader-writer locks in this manner.
 	However, textbook reader-writer locks suffer from memory
 	contention, so that the RCU read-side critical sections would
@@ -153,7 +144,8 @@ preventing grace-period sharing.
 	On the other hand, use of a reader-writer lock that is
 	read-acquired in \co{rcu_read_lock()} would avoid the
 	deadlock condition noted above.
-} \QuickQuizEnd
+}\QuickQuizEndE
+}
 
 It is hard to imagine this implementation being useful
 in a production setting, though it does have the virtue
@@ -169,37 +161,7 @@ in the next section.
 \section{Per-Thread Lock-Based RCU}
 \label{sec:app:toyrcu:Per-Thread Lock-Based RCU}
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 static void rcu_read_lock(void)
-  2 {
-  3   spin_lock(&__get_thread_var(rcu_gp_lock));
-  4 }
-  5
-  6 static void rcu_read_unlock(void)
-  7 {
-  8   spin_unlock(&__get_thread_var(rcu_gp_lock));
-  9 }
- 10
- 11 void synchronize_rcu(void)
- 12 {
- 13   int t;
- 14
- 15   for_each_running_thread(t) {
- 16     spin_lock(&per_thread(rcu_gp_lock, t));
- 17     spin_unlock(&per_thread(rcu_gp_lock, t));
- 18   }
- 19 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Per-Thread Lock-Based RCU Implementation}
-\label{fig:app:toyrcu:Per-Thread Lock-Based RCU Implementation}
-\end{figure}
-
-Figure~\ref{fig:app:toyrcu:Per-Thread Lock-Based RCU Implementation}
+\cref{lst:app:toyrcu:Per-Thread Lock-Based RCU Implementation}
 (\path{rcu_lock_percpu.h} and \path{rcu_lock_percpu.c})
 shows an implementation based on one lock per thread.
 The \co{rcu_read_lock()} and \co{rcu_read_unlock()} functions
@@ -210,32 +172,42 @@ Therefore, all RCU read-side critical sections running
 when \co{synchronize_rcu()} starts must have completed before
 \co{synchronize_rcu()} can return.
 
+\begin{listing}
+\input{CodeSamples/defer/rcu_lock_percpu@lock_unlock.fcv}\vspace*{-11pt}\fvset{firstnumber=last}
+\input{CodeSamples/defer/rcu_lock_percpu@sync.fcv}\fvset{firstnumber=auto}
+\caption{Per-Thread Lock-Based RCU Implementation}
+\label{lst:app:toyrcu:Per-Thread Lock-Based RCU Implementation}
+\end{listing}
+
 This implementation does have the virtue of permitting concurrent
 RCU readers, and does avoid the deadlock condition that can arise
 with a single global lock.
 Furthermore, the read-side overhead, though high at roughly 140 nanoseconds,
 remains at about 140 nanoseconds regardless of the number of CPUs.
 However, the update-side overhead ranges from about 600 nanoseconds
-on a single Power5 CPU
+on a single \Power{5} CPU
 up to more than 100 \emph{microseconds} on 64 CPUs.
 
-\QuickQuiz{}
+\QuickQuizSeries{%
+\QuickQuizB{
+	\begin{fcvref}[ln:defer:rcu_lock_percpu:sync:loop]
 	Wouldn't it be cleaner to acquire all the locks, and then
-	release them all in the loop from lines~15-18 of
-	Figure~\ref{fig:app:toyrcu:Per-Thread Lock-Based RCU Implementation}?
+	release them all in the loop from \clnrefrange{b}{e} of
+	\cref{lst:app:toyrcu:Per-Thread Lock-Based RCU Implementation}?
 	After all, with this change, there would be a point in time
 	when there were no readers, simplifying things greatly.
-\QuickQuizAnswer{
+	\end{fcvref}
+}\QuickQuizAnswerB{
 	Making this change would re-introduce the deadlock, so
 	no, it would not be cleaner.
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndB
+%
+\QuickQuizM{
 	Is the implementation shown in
-	Figure~\ref{fig:app:toyrcu:Per-Thread Lock-Based RCU Implementation}
+	\cref{lst:app:toyrcu:Per-Thread Lock-Based RCU Implementation}
 	free from deadlocks?
 	Why or why not?
-\QuickQuizAnswer{
+}\QuickQuizAnswerM{
 	One deadlock is where a lock is
 	held across \co{synchronize_rcu()}, and that same lock is
 	acquired within an RCU read-side critical section.
@@ -245,7 +217,7 @@ up to more than 100 \emph{microseconds} on 64 CPUs.
 	pre-existing RCU read-side critical sections to complete,
 	but if one of those critical sections is spinning on a lock
 	held by the thread executing the \co{synchronize_rcu()},
-	we have a deadlock inherent in the definition of RCU.
+	we have a deadlock inherent in the definition of RCU\@.
 
 	Another deadlock happens when attempting to nest RCU read-side
 	critical sections.
@@ -262,14 +234,14 @@ up to more than 100 \emph{microseconds} on 64 CPUs.
 	is immediately released, prohibiting a deadlock cycle that
 	does not involve a lock held across the \co{synchronize_rcu()}
 	which is the first case above.
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndM
+%
+\QuickQuizE{
 	Isn't one advantage of the RCU algorithm shown in
-	Figure~\ref{fig:app:toyrcu:Per-Thread Lock-Based RCU Implementation}
+	\cref{lst:app:toyrcu:Per-Thread Lock-Based RCU Implementation}
 	that it uses only primitives that are widely available,
 	for example, in POSIX pthreads?
-\QuickQuizAnswer{
+}\QuickQuizAnswerE{
 	This is indeed an advantage, but do not forget that
 	\co{rcu_dereference()} and \co{rcu_assign_pointer()}
 	are still required, which means \co{volatile} manipulation
@@ -277,7 +249,8 @@ up to more than 100 \emph{microseconds} on 64 CPUs.
 	\co{rcu_assign_pointer()}.
 	Of course, many Alpha CPUs require memory barriers for both
 	primitives.
-} \QuickQuizEnd
+}\QuickQuizEndE
+}
 
 This approach could be useful in some situations, given that a similar
 approach was used in the
@@ -289,44 +262,12 @@ the shortcomings of the lock-based implementation.
 \section{Simple Counter-Based RCU}
 \label{sec:app:toyrcu:Simple Counter-Based RCU}
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 atomic_t rcu_refcnt;
-  2
-  3 static void rcu_read_lock(void)
-  4 {
-  5   atomic_inc(&rcu_refcnt);
-  6   smp_mb();
-  7 }
-  8
-  9 static void rcu_read_unlock(void)
- 10 {
- 11   smp_mb();
- 12   atomic_dec(&rcu_refcnt);
- 13 }
- 14
- 15 void synchronize_rcu(void)
- 16 {
- 17   smp_mb();
- 18   while (atomic_read(&rcu_refcnt) != 0) {
- 19     poll(NULL, 0, 10);
- 20   }
- 21   smp_mb();
- 22 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{RCU Implementation Using Single Global Reference Counter}
-\label{fig:app:toyrcu:RCU Implementation Using Single Global Reference Counter}
-\end{figure}
-
 A slightly more sophisticated RCU implementation is shown in
-Figure~\ref{fig:app:toyrcu:RCU Implementation Using Single Global Reference Counter}
+\cref{lst:app:toyrcu:RCU Implementation Using Single Global Reference Counter}
 (\path{rcu_rcg.h} and \path{rcu_rcg.c}).
+\begin{fcvref}[ln:defer:rcu_rcg]
 This implementation makes use of a global reference counter
-\co{rcu_refcnt} defined on line~1.
+\co{rcu_refcnt} defined on \clnref{lock_unlock:grc}.
 The \co{rcu_read_lock()} primitive atomically increments this
 counter, then executes a memory barrier to ensure that the
 RCU read-side critical section is ordered after the atomic
@@ -336,39 +277,47 @@ confine the RCU read-side critical section, then atomically
 decrements the counter.
 The \co{synchronize_rcu()} primitive spins waiting for the reference
 counter to reach zero, surrounded by memory barriers.
-The \co{poll()} on line~19 merely provides pure delay, and from
+The \co{poll()} on \clnref{sync:poll} merely provides pure delay, and from
 a pure RCU-semantics point of view could be omitted.
 Again, once \co{synchronize_rcu()} returns, all prior
 RCU read-side critical sections are guaranteed to have completed.
+\end{fcvref}
+
+\begin{listing}
+\input{CodeSamples/defer/rcu_rcg@lock_unlock.fcv}\vspace*{-11pt}\fvset{firstnumber=last}
+\input{CodeSamples/defer/rcu_rcg@sync.fcv}\fvset{firstnumber=auto}
+\caption{RCU Implementation Using Single Global Reference Counter}
+\label{lst:app:toyrcu:RCU Implementation Using Single Global Reference Counter}
+\end{listing}
 
 In happy contrast to the lock-based implementation shown in
-Section~\ref{sec:app:toyrcu:Lock-Based RCU}, this implementation
+\cref{sec:app:toyrcu:Lock-Based RCU}, this implementation
 allows parallel execution of RCU read-side critical sections.
 In happy contrast to the per-thread lock-based implementation shown in
-Section~\ref{sec:app:toyrcu:Per-Thread Lock-Based RCU},
+\cref{sec:app:toyrcu:Per-Thread Lock-Based RCU},
 it also allows them to be nested.
 In addition, the \co{rcu_read_lock()} primitive cannot possibly
-participate in deadlock cycles, as it never spins nor blocks.
+participate in \IXpl{deadlock cycle}, as it never spins nor blocks.
 
-\QuickQuiz{}
+\QuickQuiz{
 	But what if you hold a lock across a call to
 	\co{synchronize_rcu()}, and then acquire that same lock within
 	an RCU read-side critical section?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Indeed, this would deadlock any legal RCU implementation.
 	But is \co{rcu_read_lock()} \emph{really} participating in
 	the deadlock cycle?
 	If you believe that it is, then please
 	ask yourself this same question when looking at the
 	RCU implementation in
-	Section~\ref{sec:app:toyrcu:RCU Based on Quiescent States}.
-} \QuickQuizEnd
+	\cref{sec:app:toyrcu:RCU Based on Quiescent States}.
+}\QuickQuizEnd
 
-However, this implementations still has some serious shortcomings.
+However, this implementation still has some serious shortcomings.
 First, the atomic operations in \co{rcu_read_lock()} and
 \co{rcu_read_unlock()} are still quite  heavyweight,
 with read-side overhead ranging from about 100~nanoseconds on
-a single Power5 CPU up to almost 40~\emph{microseconds}
+a single \Power{5} CPU up to almost 40~\emph{microseconds}
 on a 64-CPU system.
 This means that the RCU read-side critical sections
 have to be extremely long in order to get any real
@@ -377,10 +326,10 @@ On the other hand, in the absence of readers, grace periods elapse
 in about 40~\emph{nanoseconds}, many orders of magnitude faster
 than production-quality implementations in the Linux kernel.
 
-\QuickQuiz{}
+\QuickQuiz{
 	How can the grace period possibly elapse in 40 nanoseconds when
 	\co{synchronize_rcu()} contains a 10-millisecond delay?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	The update-side test was run in absence of readers, so the
 	\co{poll()} system call was never invoked.
 	In addition, the actual code has this \co{poll()}
@@ -390,7 +339,7 @@ than production-quality implementations in the Linux kernel.
 	using the \co{poll()} system call, but then again,
 	production uses would be even better served by other implementations
 	shown later in this section.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 Second, if there are many concurrent \co{rcu_read_lock()}
 and \co{rcu_read_unlock()} operations, there will
@@ -403,16 +352,16 @@ Finally, a large number of RCU readers with long read-side
 critical sections could prevent \co{synchronize_rcu()}
 from ever completing, as the global counter might
 never reach zero.
-This could result in starvation of RCU updates, which
+This could result in \IX{starvation} of RCU updates, which
 is of course unacceptable in production settings.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Why not simply make \co{rcu_read_lock()} wait when a concurrent
 	\co{synchronize_rcu()} has been waiting too long in
 	the RCU implementation in
-	Figure~\ref{fig:app:toyrcu:RCU Implementation Using Single Global Reference Counter}?
+	\cref{lst:app:toyrcu:RCU Implementation Using Single Global Reference Counter}?
 	Wouldn't that prevent \co{synchronize_rcu()} from starving?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Although this would in fact eliminate the starvation, it would
 	also mean that \co{rcu_read_lock()} would spin or block waiting
 	for the writer, which is in turn waiting on readers.
@@ -421,9 +370,9 @@ is of course unacceptable in production settings.
 	have deadlock.
 
 	In short, the cure is worse than the disease.
-	See Section~\ref{sec:app:toyrcu:Starvation-Free Counter-Based RCU}
+	See \cref{sec:app:toyrcu:Starvation-Free Counter-Based RCU}
 	for a proper cure.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 Therefore, it is still hard to imagine this implementation being useful
 in a production setting, though it has a bit more potential
@@ -435,63 +384,8 @@ scheme that is more favorable to writers.
 \section{Starvation-Free Counter-Based RCU}
 \label{sec:app:toyrcu:Starvation-Free Counter-Based RCU}
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 DEFINE_SPINLOCK(rcu_gp_lock);
-  2 atomic_t rcu_refcnt[2];
-  3 atomic_t rcu_idx;
-  4 DEFINE_PER_THREAD(int, rcu_nesting);
-  5 DEFINE_PER_THREAD(int, rcu_read_idx);
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{RCU Global Reference-Count Pair Data}
-\label{fig:app:toyrcu:RCU Global Reference-Count Pair Data}
-\end{figure}
-
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 static void rcu_read_lock(void)
-  2 {
-  3   int i;
-  4   int n;
-  5
-  6   n = __get_thread_var(rcu_nesting);
-  7   if (n == 0) {
-  8     i = atomic_read(&rcu_idx);
-  9     __get_thread_var(rcu_read_idx) = i;
- 10     atomic_inc(&rcu_refcnt[i]);
- 11   }
- 12   __get_thread_var(rcu_nesting) = n + 1;
- 13   smp_mb();
- 14 }
- 15
- 16 static void rcu_read_unlock(void)
- 17 {
- 18   int i;
- 19   int n;
- 20
- 21   smp_mb();
- 22   n = __get_thread_var(rcu_nesting);
- 23   if (n == 1) {
- 24      i = __get_thread_var(rcu_read_idx);
- 25      atomic_dec(&rcu_refcnt[i]);
- 26   }
- 27   __get_thread_var(rcu_nesting) = n - 1;
- 28 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{RCU Read-Side Using Global Reference-Count Pair}
-\label{fig:app:toyrcu:RCU Read-Side Using Global Reference-Count Pair}
-\end{figure}
-
-Figure~\ref{fig:app:toyrcu:RCU Read-Side Using Global Reference-Count Pair}
-(\path{rcu_rcgp.h})
+\Cref{lst:app:toyrcu:RCU Read-Side Using Global Reference-Count Pair}
+(\path{rcu_rcpg.h})
 shows the read-side primitives of an RCU implementation that uses a pair
 of reference counters (\co{rcu_refcnt[]}),
 along with a global index that
@@ -500,7 +394,19 @@ a per-thread nesting counter \co{rcu_nesting},
 a per-thread snapshot of the global index (\co{rcu_read_idx}),
 and a global lock (\co{rcu_gp_lock}),
 which are themselves shown in
-Figure~\ref{fig:app:toyrcu:RCU Global Reference-Count Pair Data}.
+\cref{lst:app:toyrcu:RCU Global Reference-Count Pair Data}.
+
+\begin{listing}
+\input{CodeSamples/defer/rcu_rcpg@define.fcv}
+\caption{RCU Global Reference-Count Pair Data}
+\label{lst:app:toyrcu:RCU Global Reference-Count Pair Data}
+\end{listing}
+
+\begin{listing}
+\input{CodeSamples/defer/rcu_rcpg@r.fcv}
+\caption{RCU Read-Side Using Global Reference-Count Pair}
+\label{lst:app:toyrcu:RCU Read-Side Using Global Reference-Count Pair}
+\end{listing}
 
 \paragraph{Design}
 
@@ -553,84 +459,69 @@ additional measures must be taken to permit nesting.
 These additional measures use the per-thread \co{rcu_nesting} variable
 to track nesting.
 
-To make all this work, line~6 of \co{rcu_read_lock()} in
-Figure~\ref{fig:app:toyrcu:RCU Read-Side Using Global Reference-Count Pair}
+\begin{fcvref}[ln:defer:rcu_rcpg:r:lock]
+To make all this work, \clnref{pick} of \co{rcu_read_lock()} in
+\cref{lst:app:toyrcu:RCU Read-Side Using Global Reference-Count Pair}
 picks up the
-current thread's instance of \co{rcu_nesting}, and if line~7 finds
+current thread's instance of \co{rcu_nesting}, and if \clnref{if} finds
 that this is the outermost \co{rcu_read_lock()},
-then lines~8-10 pick up the current value of
+then \clnrefrange{cur:b}{cur:e} pick up the current value of
 \co{rcu_idx}, save it in this thread's instance of \co{rcu_read_idx},
 and atomically increment the selected element of \co{rcu_refcnt}.
-Regardless of the value of \co{rcu_nesting}, line~12 increments it.
-Line~13 executes a memory barrier to ensure that the RCU read-side
+Regardless of the value of \co{rcu_nesting}, \clnref{inc} increments it.
+\Clnref{mb} executes a memory barrier to ensure that the RCU read-side
 critical section does not bleed out before the \co{rcu_read_lock()} code.
+\end{fcvref}
 
+\begin{fcvref}[ln:defer:rcu_rcpg:r:unlock]
 Similarly, the \co{rcu_read_unlock()} function executes a memory barrier
-at line~21
+at \clnref{mb}
 to ensure that the RCU read-side critical section does not bleed out
 after the \co{rcu_read_unlock()} code.
-Line~22 picks up this thread's instance of \co{rcu_nesting}, and if
-line~23 finds that this is the outermost \co{rcu_read_unlock()},
-then lines~24 and 25 pick up this thread's instance of \co{rcu_read_idx}
+\Clnref{nest} picks up this thread's instance of \co{rcu_nesting}, and if
+\clnref{if} finds that this is the outermost \co{rcu_read_unlock()},
+then \clnref{idx,atmdec} pick up this thread's instance of \co{rcu_read_idx}
 (saved by the outermost \co{rcu_read_lock()}) and atomically decrements
 the selected element of \co{rcu_refcnt}.
-Regardless of the nesting level, line~27 decrements this thread's
+Regardless of the nesting level, \clnref{decnest} decrements this thread's
 instance of \co{rcu_nesting}.
+\end{fcvref}
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 void synchronize_rcu(void)
-  2 {
-  3   int i;
-  4
-  5   smp_mb();
-  6   spin_lock(&rcu_gp_lock);
-  7   i = atomic_read(&rcu_idx);
-  8   atomic_set(&rcu_idx, !i);
-  9   smp_mb();
- 10   while (atomic_read(&rcu_refcnt[i]) != 0) {
- 11     poll(NULL, 0, 10);
- 12   }
- 13   smp_mb();
- 14   atomic_set(&rcu_idx, i);
- 15   smp_mb();
- 16   while (atomic_read(&rcu_refcnt[!i]) != 0) {
- 17     poll(NULL, 0, 10);
- 18   }
- 19   spin_unlock(&rcu_gp_lock);
- 20   smp_mb();
- 21 }
-\end{verbbox}
-}
-\centering
-\theverbbox
+\begin{listing}
+\input{CodeSamples/defer/rcu_rcpg@sync.fcv}
 \caption{RCU Update Using Global Reference-Count Pair}
-\label{fig:app:toyrcu:RCU Update Using Global Reference-Count Pair}
-\end{figure}
+\label{lst:app:toyrcu:RCU Update Using Global Reference-Count Pair}
+\end{listing}
 
-Figure~\ref{fig:app:toyrcu:RCU Update Using Global Reference-Count Pair}
+\begin{fcvref}[ln:defer:rcu_rcpg:sync]
+\Cref{lst:app:toyrcu:RCU Update Using Global Reference-Count Pair}
 (\path{rcu_rcpg.c})
 shows the corresponding \co{synchronize_rcu()} implementation.
-Lines~6 and 19 acquire and release \co{rcu_gp_lock} in order to
+\Clnref{acq,rel} acquire and release \co{rcu_gp_lock} in order to
 prevent more than one concurrent instance of \co{synchronize_rcu()}.
-Lines~7-8 pick up the value of \co{rcu_idx} and complement it,
+\Clnref{pick,compl} pick up the value of \co{rcu_idx} and complement it,
 respectively, so that subsequent instances of \co{rcu_read_lock()}
 will use a different element of \co{rcu_refcnt} than did preceding
 instances.
-Lines~10-12 then wait for the prior element of \co{rcu_refcnt} to
-reach zero, with the memory barrier on line~9 ensuring that the check
+\Clnrefrange{while:b}{while:e}
+then wait for the prior element of \co{rcu_refcnt} to
+reach zero, with the memory barrier on \clnref{mb2} ensuring that the check
 of \co{rcu_refcnt} is not reordered to precede the complementing of
 \co{rcu_idx}.
-Lines~13-18 repeat this process, and line~20 ensures that any
+\Clnrefrange{mb3}{while2:e} repeat this process, and
+\clnref{mb5} ensures that any
 subsequent reclamation operations are not reordered to precede the
 checking of \co{rcu_refcnt}.
+\end{fcvref}
 
-\QuickQuiz{}
-	Why the memory barrier on line~5 of \co{synchronize_rcu()} in
-	Figure~\ref{fig:app:toyrcu:RCU Update Using Global Reference-Count Pair}
+\QuickQuizSeries{%
+\QuickQuizB{
+	\begin{fcvref}[ln:defer:rcu_rcpg:sync]
+	Why the memory barrier on \clnref{mb1} of \co{synchronize_rcu()} in
+	\cref{lst:app:toyrcu:RCU Update Using Global Reference-Count Pair}
 	given that there is a spin-lock acquisition immediately after?
-\QuickQuizAnswer{
+	\end{fcvref}
+}\QuickQuizAnswerB{
 	The spin-lock acquisition only guarantees that the spin-lock's
 	critical section will not ``bleed out'' to precede the
 	acquisition.
@@ -644,34 +535,37 @@ checking of \co{rcu_refcnt}.
 
 	Exercise for the reader: use a tool such as Promela/spin
 	to determine which (if any) of the memory barriers in
-	Figure~\ref{fig:app:toyrcu:RCU Update Using Global Reference-Count Pair}
+	\cref{lst:app:toyrcu:RCU Update Using Global Reference-Count Pair}
 	are really needed.
-	See Chapter~\ref{chp:Formal Verification}
+	See \cref{chp:Formal Verification}
 	for information on using these tools.
 	The first correct and complete response will be credited.
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndB
+%
+\QuickQuizE{
 	Why is the counter flipped twice in
-	Figure~\ref{fig:app:toyrcu:RCU Update Using Global Reference-Count Pair}?
+	\cref{lst:app:toyrcu:RCU Update Using Global Reference-Count Pair}?
 	Shouldn't a single flip-and-wait cycle be sufficient?
-\QuickQuizAnswer{
+}\QuickQuizAnswerE{
+	\begin{fcvref}[ln:defer:rcu_rcpg]
 	Both flips are absolutely required.
 	To see this, consider the following sequence of events:
 	\begin{enumerate}
-	\item	Line~8 of \co{rcu_read_lock()} in
-		Figure~\ref{fig:app:toyrcu:RCU Read-Side Using Global Reference-Count Pair}
+	\item	\Clnref{r:lock:cur:b} of \co{rcu_read_lock()} in
+		\cref{lst:app:toyrcu:RCU Read-Side Using Global Reference-Count Pair}
 		picks up \co{rcu_idx}, finding its value to be zero.
-	\item	Line~8 of \co{synchronize_rcu()} in
-		Figure~\ref{fig:app:toyrcu:RCU Update Using Global Reference-Count Pair}
+	\item	\Clnref{sync:compl} of \co{synchronize_rcu()} in
+		\cref{lst:app:toyrcu:RCU Update Using Global Reference-Count Pair}
 		complements the value of \co{rcu_idx}, setting its
 		value to one.
-	\item	Lines~10-13 of \co{synchronize_rcu()} find that the
+	\item	\Clnrefrange{sync:while:b}{sync:while:e}
+		of \co{synchronize_rcu()} find that the
 		value of \co{rcu_refcnt[0]} is zero, and thus
 		returns.
 		(Recall that the question is asking what happens if
-		lines~14-20 are omitted.)
-	\item	Lines~9 and 10 of \co{rcu_read_lock()} store the
+		\clnrefrange{sync:mb3}{sync:mb5} are omitted.)
+	\item	\Clnref{r:lock:set,r:lock:cur:e}
+		of \co{rcu_read_lock()} store the
 		value zero to this thread's instance of \co{rcu_read_idx}
 		and increments \co{rcu_refcnt[0]}, respectively.
 		Execution then proceeds into the RCU read-side critical
@@ -698,15 +592,17 @@ checking of \co{rcu_refcnt}.
 
 	Exercise for the reader: What happens if \co{rcu_read_lock()}
 	is preempted for a very long time (hours!) just after
-	line~8?
+	\clnref{r:lock:cur:b}?
 	Does this implementation operate correctly in that case?
 	Why or why not?
 	The first correct and complete response will be credited.
-} \QuickQuizEnd
+	\end{fcvref}
+}\QuickQuizEndE
+}
 
 This implementation avoids the update-starvation issues that could
 occur in the single-counter implementation shown in
-Figure~\ref{fig:app:toyrcu:RCU Implementation Using Single Global Reference Counter}.
+\cref{lst:app:toyrcu:RCU Implementation Using Single Global Reference Counter}.
 
 \paragraph{Discussion}
 
@@ -716,11 +612,11 @@ and \co{rcu_read_unlock()}
 are still quite heavyweight.
 In fact, they are more complex than those
 of the single-counter variant shown in
-Figure~\ref{fig:app:toyrcu:RCU Implementation Using Single Global Reference Counter},
+\cref{lst:app:toyrcu:RCU Implementation Using Single Global Reference Counter},
 with the read-side primitives consuming about 150~nanoseconds on a single
-Power5 CPU and almost 40~\emph{microseconds} on a 64-CPU system.
+\Power{5} CPU and almost 40~\emph{microseconds} on a 64-CPU system.
 The update-side \co{synchronize_rcu()} primitive is more costly as
-well, ranging from about 200~nanoseconds on a single Power5 CPU to
+well, ranging from about 200~nanoseconds on a single \Power{5} CPU to
 more than 40~\emph{microseconds} on a 64-CPU system.
 This means that the RCU read-side critical sections
 have to be extremely long in order to get any real
@@ -744,18 +640,20 @@ satisfied by a common grace period, this implementation
 serializes grace periods, preventing grace-period
 sharing.
 
-\QuickQuiz{}
+\QuickQuiz{
+	\begin{fcvref}[ln:defer:rcu_rcpg:r]
 	Given that atomic increment and decrement are so expensive,
-	why not just use non-atomic increment on line~10 and a
-	non-atomic decrement on line~25 of
-	Figure~\ref{fig:app:toyrcu:RCU Read-Side Using Global Reference-Count Pair}?
-\QuickQuizAnswer{
+	why not just use non-atomic increment on \clnref{lock:cur:e} and a
+	non-atomic decrement on \clnref{unlock:atmdec} of
+	\cref{lst:app:toyrcu:RCU Read-Side Using Global Reference-Count Pair}?
+	\end{fcvref}
+}\QuickQuizAnswer{
 	Using non-atomic operations would cause increments and decrements
 	to be lost, in turn causing the implementation to fail.
-	See Section~\ref{sec:app:toyrcu:Scalable Counter-Based RCU}
+	See \cref{sec:app:toyrcu:Scalable Counter-Based RCU}
 	for a safe way to use non-atomic operations in
 	\co{rcu_read_lock()} and \co{rcu_read_unlock()}.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 Despite these shortcomings, one could imagine this variant
 of RCU being used on small tightly coupled multiprocessors,
@@ -769,83 +667,40 @@ scheme that provides greatly improved read-side performance and scalability.
 \section{Scalable Counter-Based RCU}
 \label{sec:app:toyrcu:Scalable Counter-Based RCU}
 
-\begin{figure}[tb]
-{ \scriptsize
-\begin{verbbox}
-  1 DEFINE_SPINLOCK(rcu_gp_lock);
-  2 DEFINE_PER_THREAD(int [2], rcu_refcnt);
-  3 atomic_t rcu_idx;
-  4 DEFINE_PER_THREAD(int, rcu_nesting);
-  5 DEFINE_PER_THREAD(int, rcu_read_idx);
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{RCU Per-Thread Reference-Count Pair Data}
-\label{fig:app:toyrcu:RCU Per-Thread Reference-Count Pair Data}
-\end{figure}
-
-\begin{figure}[tb]
-{ \scriptsize
-\begin{verbbox}
-  1 static void rcu_read_lock(void)
-  2 {
-  3   int i;
-  4   int n;
-  5
-  6   n = __get_thread_var(rcu_nesting);
-  7   if (n == 0) {
-  8     i = atomic_read(&rcu_idx);
-  9     __get_thread_var(rcu_read_idx) = i;
- 10     __get_thread_var(rcu_refcnt)[i]++;
- 11   }
- 12   __get_thread_var(rcu_nesting) = n + 1;
- 13   smp_mb();
- 14 }
- 15
- 16 static void rcu_read_unlock(void)
- 17 {
- 18   int i;
- 19   int n;
- 20
- 21   smp_mb();
- 22   n = __get_thread_var(rcu_nesting);
- 23   if (n == 1) {
- 24      i = __get_thread_var(rcu_read_idx);
- 25      __get_thread_var(rcu_refcnt)[i]--;
- 26   }
- 27   __get_thread_var(rcu_nesting) = n - 1;
- 28 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{RCU Read-Side Using Per-Thread Reference-Count Pair}
-\label{fig:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair}
-\end{figure}
-
-Figure~\ref{fig:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair}
+\Cref{lst:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair}
 (\path{rcu_rcpl.h})
 shows the read-side primitives of an RCU implementation that uses per-thread
 pairs of reference counters.
 This implementation is quite similar to that shown in
-Figure~\ref{fig:app:toyrcu:RCU Read-Side Using Global Reference-Count Pair},
+\cref{lst:app:toyrcu:RCU Read-Side Using Global Reference-Count Pair},
 the only difference being that \co{rcu_refcnt} is now a per-thread
 array (as shown in
-Figure~\ref{fig:app:toyrcu:RCU Per-Thread Reference-Count Pair Data}).
+\cref{lst:app:toyrcu:RCU Per-Thread Reference-Count Pair Data}).
 As with the algorithm in the previous section, use of this two-element
 array prevents readers from starving updaters.
 One benefit of per-thread \co{rcu_refcnt[]} array is that the
 \co{rcu_read_lock()} and \co{rcu_read_unlock()} primitives no longer
 perform atomic operations.
 
-\QuickQuiz{}
+\begin{listing}
+\input{CodeSamples/defer/rcu_rcpl@define.fcv}
+\caption{RCU Per-Thread Reference-Count Pair Data}
+\label{lst:app:toyrcu:RCU Per-Thread Reference-Count Pair Data}
+\end{listing}
+
+\begin{listing}
+\input{CodeSamples/defer/rcu_rcpl@r.fcv}
+\caption{RCU Read-Side Using Per-Thread Reference-Count Pair}
+\label{lst:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair}
+\end{listing}
+
+\QuickQuiz{
 	Come off it!
 	We can see the \co{atomic_read()} primitive in
 	\co{rcu_read_lock()}!!!
 	So why are you trying to pretend that \co{rcu_read_lock()}
 	contains no atomic operations???
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	The \co{atomic_read()} primitives does not actually execute
 	atomic machine instructions, but rather does a normal load
 	from an \co{atomic_t}.
@@ -855,60 +710,35 @@ perform atomic operations.
 	to store a 16-bit pointer with two eight-bit accesses on some
 	8-bit systems.
 	But thankfully, it seems that no one runs Linux on 8-bit systems.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 static void flip_counter_and_wait(int i)
-  2 {
-  3   int t;
-  4
-  5   atomic_set(&rcu_idx, !i);
-  6   smp_mb();
-  7   for_each_thread(t) {
-  8     while (per_thread(rcu_refcnt, t)[i] != 0) {
-  9       poll(NULL, 0, 10);
- 10     }
- 11   }
- 12   smp_mb();
- 13 }
- 14
- 15 void synchronize_rcu(void)
- 16 {
- 17   int i;
- 18
- 19   smp_mb();
- 20   spin_lock(&rcu_gp_lock);
- 21   i = atomic_read(&rcu_idx);
- 22   flip_counter_and_wait(i);
- 23   flip_counter_and_wait(!i);
- 24   spin_unlock(&rcu_gp_lock);
- 25   smp_mb();
- 26 }
-\end{verbbox}
-}
-\centering
-\theverbbox
+\begin{listing}
+\input{CodeSamples/defer/rcu_rcpl@u.fcv}
 \caption{RCU Update Using Per-Thread Reference-Count Pair}
-\label{fig:app:toyrcu:RCU Update Using Per-Thread Reference-Count Pair}
-\end{figure}
+\label{lst:app:toyrcu:RCU Update Using Per-Thread Reference-Count Pair}
+\end{listing}
 
-Figure~\ref{fig:app:toyrcu:RCU Update Using Per-Thread Reference-Count Pair}
+\Cref{lst:app:toyrcu:RCU Update Using Per-Thread Reference-Count Pair}
 (\path{rcu_rcpl.c})
 shows the implementation of \co{synchronize_rcu()}, along with a helper
 function named \co{flip_counter_and_wait()}.
+\begin{fcvref}[ln:defer:rcu_rcpl:u:sync]
 The \co{synchronize_rcu()} function resembles that shown in
-Figure~\ref{fig:app:toyrcu:RCU Update Using Global Reference-Count Pair},
+\cref{lst:app:toyrcu:RCU Update Using Global Reference-Count Pair},
 except that the repeated counter flip is replaced by a pair of calls
-on lines~22 and 23 to the new helper function.
+on \clnref{flip1,flip2} to the new helper function.
+\end{fcvref}
 
+\begin{fcvref}[ln:defer:rcu_rcpl:u:flip]
 The new \co{flip_counter_and_wait()} function updates the
-\co{rcu_idx} variable on line~5, executes a memory barrier on line~6,
-then lines~7-11 spin on each thread's prior \co{rcu_refcnt} element,
+\co{rcu_idx} variable on \clnref{atmset},
+executes a memory barrier on \clnref{mb1},
+then \clnrefrange{loop:b}{loop:e}
+spin on each thread's prior \co{rcu_refcnt} element,
 waiting for it to go to zero.
 Once all such elements have gone to zero,
-it executes another memory barrier on line~12 and returns.
+it executes another memory barrier on \clnref{mb2} and returns.
+\end{fcvref}
 
 This RCU implementation imposes important new requirements on its
 software environment, namely, (1) that it be possible to declare
@@ -921,12 +751,12 @@ expandable hash tables.
 Such implementations might dynamically track threads, for example, by
 adding them on their first call to \co{rcu_read_lock()}.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Great, if we have $N$ threads, we can have $2N$ ten-millisecond
 	waits (one set per \co{flip_counter_and_wait()} invocation,
 	and even that assumes that we wait only once for each thread.
 	Don't we need the grace period to complete \emph{much} more quickly?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Keep in mind that we only wait for a given thread if that thread
 	is still in a pre-existing RCU read-side critical section,
 	and that waiting for one hold-out thread gives all the other
@@ -943,7 +773,7 @@ adding them on their first call to \co{rcu_read_lock()}.
 	order to better catch bugs that incorrectly retain a reference
 	to an RCU-protected data element outside of an RCU
 	read-side critical section.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 This implementation still has several shortcomings.
 First, the need to flip \co{rcu_idx} twice imposes substantial overhead
@@ -963,9 +793,9 @@ environments.
 
 That said, the read-side primitives scale very nicely, requiring about
 115~nanoseconds regardless of whether running on a single-CPU or a 64-CPU
-Power5 system.
+\Power{5} system.
 As noted above, the \co{synchronize_rcu()} primitive does not scale,
-ranging in overhead from almost a microsecond on a single Power5 CPU
+ranging in overhead from almost a microsecond on a single \Power{5} CPU
 up to almost 200~microseconds on a 64-CPU system.
 This implementation could conceivably form the basis for a
 production-quality user-level RCU implementation.
@@ -976,158 +806,79 @@ concurrent RCU updates.
 \section{Scalable Counter-Based RCU With Shared Grace Periods}
 \label{sec:app:toyrcu:Scalable Counter-Based RCU With Shared Grace Periods}
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 DEFINE_SPINLOCK(rcu_gp_lock);
-  2 DEFINE_PER_THREAD(int [2], rcu_refcnt);
-  3 long rcu_idx;
-  4 DEFINE_PER_THREAD(int, rcu_nesting);
-  5 DEFINE_PER_THREAD(int, rcu_read_idx);
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update Data}
-\label{fig:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update Data}
-\end{figure}
-
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 static void rcu_read_lock(void)
-  2 {
-  3   int i;
-  4   int n;
-  5
-  6   n = __get_thread_var(rcu_nesting);
-  7   if (n == 0) {
-  8     i = READ_ONCE(rcu_idx) & 0x1;
-  9     __get_thread_var(rcu_read_idx) = i;
- 10     __get_thread_var(rcu_refcnt)[i]++;
- 11   }
- 12   __get_thread_var(rcu_nesting) = n + 1;
- 13   smp_mb();
- 14 }
- 15
- 16 static void rcu_read_unlock(void)
- 17 {
- 18   int i;
- 19   int n;
- 20
- 21   smp_mb();
- 22   n = __get_thread_var(rcu_nesting);
- 23   if (n == 1) {
- 24      i = __get_thread_var(rcu_read_idx);
- 25      __get_thread_var(rcu_refcnt)[i]--;
- 26   }
- 27   __get_thread_var(rcu_nesting) = n - 1;
- 28 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update}
-\label{fig:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update}
-\end{figure}
-
-Figure~\ref{fig:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update}
+\Cref{lst:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update}
 (\path{rcu_rcpls.h})
 shows the read-side primitives for an RCU implementation using per-thread
 reference count pairs, as before, but permitting updates to share
 grace periods.
+\begin{fcvref}[ln:defer:rcu_rcpls:r]
 The main difference from the earlier implementation shown in
-Figure~\ref{fig:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair}
+\cref{lst:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair}
 is that \co{rcu_idx} is now a \co{long} that counts freely,
-so that line~8 of
-Figure~\ref{fig:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update}
+so that \clnref{lock:idx} of
+\cref{lst:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update}
 must mask off the low-order bit.
 We also switched from using \co{atomic_read()} and \co{atomic_set()}
 to using \co{READ_ONCE()}.
 The data is also quite similar, as shown in
-Figure~\ref{fig:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update Data},
+\cref{lst:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update Data},
 with \co{rcu_idx} now being a \co{long} instead of an
 \co{atomic_t}.
+\end{fcvref}
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 static void flip_counter_and_wait(int ctr)
-  2 {
-  3   int i;
-  4   int t;
-  5
-  6   WRITE_ONCE(rcu_idx, ctr + 1);
-  7   i = ctr & 0x1;
-  8   smp_mb();
-  9   for_each_thread(t) {
- 10     while (per_thread(rcu_refcnt, t)[i] != 0) {
- 11       poll(NULL, 0, 10);
- 12     }
- 13   }
- 14   smp_mb();
- 15 }
- 16
- 17 void synchronize_rcu(void)
- 18 {
- 19   int ctr;
- 20   int oldctr;
- 21
- 22   smp_mb();
- 23   oldctr = READ_ONCE(rcu_idx);
- 24   smp_mb();
- 25   spin_lock(&rcu_gp_lock);
- 26   ctr = READ_ONCE(rcu_idx);
- 27   if (ctr - oldctr >= 3) {
- 28     spin_unlock(&rcu_gp_lock);
- 29     smp_mb();
- 30     return;
- 31   }
- 32   flip_counter_and_wait(ctr);
- 33   if (ctr - oldctr < 2)
- 34     flip_counter_and_wait(ctr + 1);
- 35   spin_unlock(&rcu_gp_lock);
- 36   smp_mb();
- 37 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{RCU Shared Update Using Per-Thread Reference-Count Pair}
-\label{fig:app:toyrcu:RCU Shared Update Using Per-Thread Reference-Count Pair}
-\end{figure}
+\begin{listing}
+\input{CodeSamples/defer/rcu_rcpls@define.fcv}
+\caption{RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update Data}
+\label{lst:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update Data}
+\end{listing}
 
-Figure~\ref{fig:app:toyrcu:RCU Shared Update Using Per-Thread Reference-Count Pair}
+\begin{listing}
+\input{CodeSamples/defer/rcu_rcpls@r.fcv}
+\caption{RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update}
+\label{lst:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update}
+\end{listing}
+
+\Cref{lst:app:toyrcu:RCU Shared Update Using Per-Thread Reference-Count Pair}
 (\path{rcu_rcpls.c})
 shows the implementation of \co{synchronize_rcu()} and its helper
 function \co{flip_counter_and_wait()}.
 These are similar to those in
-Figure~\ref{fig:app:toyrcu:RCU Update Using Per-Thread Reference-Count Pair}.
+\cref{lst:app:toyrcu:RCU Update Using Per-Thread Reference-Count Pair}.
 The differences in \co{flip_counter_and_wait()} include:
+\begin{fcvref}[ln:defer:rcu_rcpls:u:flip]
 \begin{enumerate}
-\item	Line~6 uses \co{WRITE_ONCE()} instead of \co{atomic_set()},
+\item	\Clnref{inc} uses \co{WRITE_ONCE()} instead of \co{atomic_set()},
 	and increments rather than complementing.
-\item	A new line~7 masks the counter down to its bottom bit.
+\item	A new \clnref{mask} masks the counter down to its bottom bit.
 \end{enumerate}
+\end{fcvref}
 
+\begin{listing}
+\input{CodeSamples/defer/rcu_rcpls@u.fcv}
+\caption{RCU Shared Update Using Per-Thread Reference-Count Pair}
+\label{lst:app:toyrcu:RCU Shared Update Using Per-Thread Reference-Count Pair}
+\end{listing}
+
+\begin{fcvref}[ln:defer:rcu_rcpls:u:sync]
 The changes to \co{synchronize_rcu()} are more pervasive:
 \begin{enumerate}
 \item	There is a new \co{oldctr} local variable that captures
 	the pre-lock-acquisition value of \co{rcu_idx} on
-	line~23.
-\item	Line~26 uses \co{READ_ONCE()} instead of \co{atomic_read()}.
-\item	Lines~27-30 check to see if at least three counter flips were
+	\clnref{oldctr}.
+\item	\Clnref{idx} uses \co{READ_ONCE()} instead of \co{atomic_read()}.
+\item	\Clnrefrange{if:b}{ret} check to see if at least three counter flips were
 	performed by other threads while the lock was being acquired,
 	and, if so, releases the lock, does a memory barrier, and returns.
 	In this case, there were two full waits for the counters to
 	go to zero, so those other threads already did all the required work.
-\item	At lines~33-34, \co{flip_counter_and_wait()} is only
+\item	At \clnrefrange{ifpair}{flip2}, \co{flip_counter_and_wait()} is only
 	invoked a second time if there were fewer than two counter flips
 	while the lock was being acquired.
 	On the other hand, if there were two counter flips, some other
 	thread did one full wait for all the counters to go to zero,
 	so only one more is required.
 \end{enumerate}
+\end{fcvref}
 
 With this approach, if an arbitrarily large number of threads invoke
 \co{synchronize_rcu()} concurrently, with one CPU for each thread, there
@@ -1163,32 +914,32 @@ extra pair of counter flips is likely the least of
 your worries.
 
 As with the implementation described in
-Section~\ref{sec:app:toyrcu:Simple Counter-Based RCU},
+\cref{sec:app:toyrcu:Simple Counter-Based RCU},
 the read-side primitives scale extremely well, incurring roughly
 115~nanoseconds of overhead regardless of the number of CPUs.
 The \co{synchronize_rcu()} primitive is still expensive,
 ranging from about one microsecond up to about 16~microseconds.
 This is nevertheless much cheaper than the roughly 200~microseconds
 incurred by the implementation in
-Section~\ref{sec:app:toyrcu:Scalable Counter-Based RCU}.
+\cref{sec:app:toyrcu:Scalable Counter-Based RCU}.
 So, despite its shortcomings, one could imagine this
 RCU implementation being used in production in real-life applications.
 
-\QuickQuiz{}
+\QuickQuiz{
 	All of these toy RCU implementations have either atomic operations
 	in \co{rcu_read_lock()} and \co{rcu_read_unlock()},
 	or \co{synchronize_rcu()}
 	overhead that increases linearly with the number of threads.
 	Under what circumstances could an RCU implementation enjoy
-	light-weight implementations for all three of these primitives,
-	all having deterministic ($O\left(1\right)$) overheads and latencies?
-\QuickQuizAnswer{
+	lightweight implementations for all three of these primitives,
+	all having deterministic ($\O{1}$) overheads and latencies?
+}\QuickQuizAnswer{
 	Special-purpose uniprocessor implementations of RCU can attain
 	this ideal~\cite{PaulEMcKenney2009BloatwatchRCU}.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 Referring back to
-Figure~\ref{fig:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update},
+\cref{lst:app:toyrcu:RCU Read-Side Using Per-Thread Reference-Count Pair and Shared Update},
 we see that there is one global-variable access and no fewer than four
 accesses to thread-local variables.
 Given the relatively high cost of thread-local accesses on systems
@@ -1202,132 +953,102 @@ thread-local accesses to one, as is done in the next section.
 \section{RCU Based on Free-Running Counter}
 \label{sec:app:toyrcu:RCU Based on Free-Running Counter}
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 DEFINE_SPINLOCK(rcu_gp_lock);
-  2 long rcu_gp_ctr = 0;
-  3 DEFINE_PER_THREAD(long, rcu_reader_gp);
-  4 DEFINE_PER_THREAD(long, rcu_reader_gp_snap);
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Data for Free-Running Counter Using RCU}
-\label{fig:app:toyrcu:Data for Free-Running Counter Using RCU}
-\end{figure}
-
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
- 1 static void rcu_read_lock(void)
- 2 {
- 3   __get_thread_var(rcu_reader_gp) =
- 4     ACCESS_ONCE(rcu_gp_ctr) + 1;
- 5   smp_mb();
- 6 }
- 7 
- 8 static void rcu_read_unlock(void)
- 9 {
-10   smp_mb();
-11   __get_thread_var(rcu_reader_gp) =
-12     ACCESS_ONCE(rcu_gp_ctr);
-13 }
-14 
-15 void synchronize_rcu(void)
-16 {
-17   int t;
-18 
-19   smp_mb();
-20   spin_lock(&rcu_gp_lock);
-21   ACCESS_ONCE(rcu_gp_ctr) += 2;
-22   smp_mb();
-23   for_each_thread(t) {
-24     while ((per_thread(rcu_reader_gp, t) & 0x1) &&
-25             ((per_thread(rcu_reader_gp, t) -
-26               ACCESS_ONCE(rcu_gp_ctr)) < 0)) {
-27       poll(NULL, 0, 10);
-28     }
-29   }
-30   spin_unlock(&rcu_gp_lock);
-31   smp_mb();
-32 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Free-Running Counter Using RCU}
-\label{fig:app:toyrcu:Free-Running Counter Using RCU}
-\end{figure}
-
-Figure~\ref{fig:app:toyrcu:Free-Running Counter Using RCU}
+\Cref{lst:app:toyrcu:Free-Running Counter Using RCU}
 (\path{rcu.h} and \path{rcu.c})
 shows an RCU implementation based on a single global free-running counter
 that takes on only even-numbered values, with data shown in
-Figure~\ref{fig:app:toyrcu:Data for Free-Running Counter Using RCU}.
+\cref{lst:app:toyrcu:Data for Free-Running Counter Using RCU}.
+
+\begin{listing}
+\input{CodeSamples/defer/rcu@define.fcv}
+\caption{Data for Free-Running Counter Using RCU}
+\label{lst:app:toyrcu:Data for Free-Running Counter Using RCU}
+\end{listing}
+
+\begin{listing}
+\input{CodeSamples/defer/rcu@read_lock_unlock.fcv}\vspace*{-11pt}\fvset{firstnumber=last}
+\input{CodeSamples/defer/rcu@synchronize.fcv}\fvset{firstnumber=auto}
+\caption{Free-Running Counter Using RCU}
+\label{lst:app:toyrcu:Free-Running Counter Using RCU}
+\end{listing}
+
 The resulting \co{rcu_read_lock()} implementation is extremely
 straightforward.
-Lines~3 and~4 simply add one to the global free-running \co{rcu_gp_ctr}
+\begin{fcvref}[ln:defer:rcu:read_lock_unlock:lock]
+\Clnref{gp1,gp2} simply
+add one to the global free-running \co{rcu_gp_ctr}
 variable and stores the resulting odd-numbered value into the
 \co{rcu_reader_gp} per-thread variable.
-Line~5 executes a memory barrier to prevent the content of the
+\Clnref{mb} executes a memory barrier to prevent the content of the
 subsequent RCU read-side critical section from ``leaking out''.
+\end{fcvref}
 
+\begin{fcvref}[ln:defer:rcu:read_lock_unlock:unlock]
 The \co{rcu_read_unlock()} implementation is similar.
-Line~10 executes a memory barrier, again to prevent the prior RCU
+\Clnref{mb} executes a memory barrier, again to prevent the prior RCU
 read-side critical section from ``leaking out''.
-Lines~11 and~12 then copy the \co{rcu_gp_ctr} global variable to the
+\Clnref{gp1,gp2} then copy the \co{rcu_gp_ctr} global variable to the
 \co{rcu_reader_gp} per-thread variable, leaving this per-thread
 variable with an even-numbered value so that a concurrent instance
 of \co{synchronize_rcu()} will know to ignore it.
+\end{fcvref}
 
-\QuickQuiz{}
+\QuickQuiz{
+	\begin{fcvref}[ln:defer:rcu:read_lock_unlock:unlock]
 	If any even value is sufficient to tell \co{synchronize_rcu()}
-	to ignore a given task, why don't lines~10 and~11 of
-	Figure~\ref{fig:app:toyrcu:Free-Running Counter Using RCU}
+	to ignore a given task, why don't \clnref{gp1,gp2} of
+	\cref{lst:app:toyrcu:Free-Running Counter Using RCU}
 	simply assign zero to \co{rcu_reader_gp}?
-\QuickQuizAnswer{
+	\end{fcvref}
+}\QuickQuizAnswer{
 	Assigning zero (or any other even-numbered constant)
 	would in fact work, but assigning the value of
 	\co{rcu_gp_ctr} can provide a valuable debugging aid,
 	as it gives the developer an idea of when the corresponding
 	thread last exited an RCU read-side critical section.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
+\begin{fcvref}[ln:defer:rcu:synchronize:syn]
 Thus, \co{synchronize_rcu()} could wait for all of the per-thread
 \co{rcu_reader_gp} variables to take on even-numbered values.
 However, it is possible to do much better than that because
 \co{synchronize_rcu()} need only wait on \emph{pre-existing}
 RCU read-side critical sections.
-Line~19 executes a memory barrier to prevent prior manipulations
+\Clnref{mb1} executes a memory barrier to prevent prior manipulations
 of RCU-protected data structures from being reordered (by either
-the CPU or the compiler) to follow the increment on line~21.
-Line~20 acquires the \co{rcu_gp_lock} (and line~30 releases it)
+the CPU or the compiler) to follow the increment on
+\clnref{increasegp}.
+\Clnref{spinlock} acquires the \co{rcu_gp_lock}
+(and \clnref{spinunlock} releases it)
 in order to prevent multiple
 \co{synchronize_rcu()} instances from running concurrently.
-Line~21 then increments the global \co{rcu_gp_ctr} variable by
+\Clnref{increasegp} then increments the global \co{rcu_gp_ctr} variable by
 two, so that all pre-existing RCU read-side critical sections will
 have corresponding per-thread \co{rcu_reader_gp} variables with
 values less than that of \co{rcu_gp_ctr}, modulo the machine's
 word size.
 Recall also that threads with even-numbered values of \co{rcu_reader_gp}
 are not in an RCU read-side critical section,
-so that lines~23-29 scan the \co{rcu_reader_gp} values until they
-all are either even (line~24) or are greater than the global
-\co{rcu_gp_ctr} (lines~25-26).
-Line~27 blocks for a short period of time to wait for a
+so that \clnrefrange{scan:b}{scan:e}
+scan the \co{rcu_reader_gp} values until they
+all are either even (\clnref{even}) or are greater than the global
+\co{rcu_gp_ctr} (\clnrefrange{gt1}{gt2}).
+\Clnref{poll} blocks for a short period of time to wait for a
 pre-existing RCU read-side critical section, but this can be replaced with
 a spin-loop if grace-period latency is of the essence.
-Finally, the memory barrier at line~31 ensures that any subsequent
+Finally, the memory barrier at \clnref{mb3} ensures that any subsequent
 destruction will not be reordered into the preceding loop.
+\end{fcvref}
 
-\QuickQuiz{}
-	Why are the memory barriers on lines~19 and~31 of
-	Figure~\ref{fig:app:toyrcu:Free-Running Counter Using RCU}
+\QuickQuiz{
+	\begin{fcvref}[ln:defer:rcu:synchronize:syn]
+	Why are the memory barriers on \clnref{mb1,mb3} of
+	\cref{lst:app:toyrcu:Free-Running Counter Using RCU}
 	needed?
 	Aren't the memory barriers inherent in the locking
-	primitives on lines~20 and~30 sufficient?
-\QuickQuizAnswer{
+	primitives on \clnref{spinlock,spinunlock} sufficient?
+	\end{fcvref}
+}\QuickQuizAnswer{
 	These memory barriers are required because the locking
 	primitives are only guaranteed to confine the critical
 	section.
@@ -1335,32 +1056,33 @@ destruction will not be reordered into the preceding loop.
 	to keep other code from bleeding in to the critical section.
 	The pair of memory barriers are therefore requires to prevent
 	this sort of code motion, whether performed by the compiler
-	or by the CPU.
-} \QuickQuizEnd
+	or by the CPU\@.
+}\QuickQuizEnd
 
 This approach achieves much better read-side performance, incurring
 roughly 63~nanoseconds of overhead regardless of the number of
-Power5 CPUs.
+\Power{5} CPUs.
 Updates incur more overhead, ranging from about 500~nanoseconds on
-a single Power5 CPU to more than 100~\emph{microseconds} on 64
+a single \Power{5} CPU to more than 100~\emph{microseconds} on 64
 such CPUs.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Couldn't the update-side batching optimization described in
-	Section~\ref{sec:app:toyrcu:Scalable Counter-Based RCU With Shared Grace Periods}
+	\cref{sec:app:toyrcu:Scalable Counter-Based RCU With Shared Grace Periods}
 	be applied to the implementation shown in
-	Figure~\ref{fig:app:toyrcu:Free-Running Counter Using RCU}?
-\QuickQuizAnswer{
+	\cref{lst:app:toyrcu:Free-Running Counter Using RCU}?
+}\QuickQuizAnswer{
 	Indeed it could, with a few modifications.
 	This work is left as an exercise for the reader.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
+\begin{fcvref}[ln:defer:rcu:read_lock_unlock:lock]
 This implementation suffers from some serious shortcomings in
 addition to the high update-side overhead noted earlier.
 First, it is no longer permissible to nest RCU read-side critical
 sections, a topic that is taken up in the next section.
-Second, if a reader is preempted at line~3 of
-Figure~\ref{fig:app:toyrcu:Free-Running Counter Using RCU} after fetching from
+Second, if a reader is preempted at \clnref{gp1} of
+\cref{lst:app:toyrcu:Free-Running Counter Using RCU} after fetching from
 \co{rcu_gp_ctr} but before storing to \co{rcu_reader_gp},
 and if the \co{rcu_gp_ctr} counter then runs through more than half
 but less than all of its possible values, then \co{synchronize_rcu()}
@@ -1368,108 +1090,43 @@ will ignore the subsequent RCU read-side critical section.
 Third and finally, this implementation requires that the enclosing software
 environment be able to enumerate threads and maintain per-thread
 variables.
+\end{fcvref}
 
-\QuickQuiz{}
+\QuickQuiz{
+	\begin{fcvref}[ln:defer:rcu:read_lock_unlock:lock]
 	Is the possibility of readers being preempted in
-	lines~3-4 of Figure~\ref{fig:app:toyrcu:Free-Running Counter Using RCU}
+	\clnrefrange{gp1}{gp2} of
+	\cref{lst:app:toyrcu:Free-Running Counter Using RCU}
 	a real problem, in other words, is there a real sequence
 	of events that could lead to failure?
 	If not, why not?
 	If so, what is the sequence of events, and how can the
 	failure be addressed?
-\QuickQuizAnswer{
+	\end{fcvref}
+}\QuickQuizAnswer{
 	It is a real problem, there is a sequence of events leading to
 	failure, and there are a number of possible ways of
 	addressing it.
 	For more details, see the Quick Quizzes near the end of
-	Section~\ref{sec:app:toyrcu:Nestable RCU Based on Free-Running Counter}.
+	\cref{sec:app:toyrcu:Nestable RCU Based on Free-Running Counter}.
 	The reason for locating the discussion there is to (1) give you
 	more time to think about it, and (2) because the nesting support
 	added in that section greatly reduces the time required to
 	overflow the counter.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 \section{Nestable RCU Based on Free-Running Counter}
 \label{sec:app:toyrcu:Nestable RCU Based on Free-Running Counter}
 
-\begin{figure}[tb]
-{ \scriptsize
-\begin{verbbox}
-  1 DEFINE_SPINLOCK(rcu_gp_lock);
-  2 #define RCU_GP_CTR_SHIFT 7
-  3 #define RCU_GP_CTR_BOTTOM_BIT (1 << RCU_GP_CTR_SHIFT)
-  4 #define RCU_GP_CTR_NEST_MASK (RCU_GP_CTR_BOTTOM_BIT - 1)
-  5 long rcu_gp_ctr = 0;
-  6 DEFINE_PER_THREAD(long, rcu_reader_gp);
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Data for Nestable RCU Using a Free-Running Counter}
-\label{fig:app:toyrcu:Data for Nestable RCU Using a Free-Running Counter}
-\end{figure}
-
-\begin{figure}[tb]
-{ \scriptsize
-\begin{verbbox}
- 1 static void rcu_read_lock(void)
- 2 {
- 3   long tmp;
- 4   long *rrgp;
- 5 
- 6   rrgp = &__get_thread_var(rcu_reader_gp);
- 7   tmp = *rrgp;
- 8   if ((tmp & RCU_GP_CTR_NEST_MASK) == 0)
- 9     tmp = ACCESS_ONCE(rcu_gp_ctr);
-10   tmp++;
-11   *rrgp = tmp;
-12   smp_mb();
-13 }
-14 
-15 static void rcu_read_unlock(void)
-16 {
-17   long tmp;
-18 
-19   smp_mb();
-20   __get_thread_var(rcu_reader_gp)--;
-21 }
-22 
-23 void synchronize_rcu(void)
-24 {
-25   int t;
-26 
-27   smp_mb();
-28   spin_lock(&rcu_gp_lock);
-29   ACCESS_ONCE(rcu_gp_ctr) +=
-30     RCU_GP_CTR_BOTTOM_BIT;
-31   smp_mb();
-32   for_each_thread(t) {
-33     while (rcu_gp_ongoing(t) &&
-34            ((per_thread(rcu_reader_gp, t) -
-35              rcu_gp_ctr) < 0)) {
-36       poll(NULL, 0, 10);
-37     }
-38   }
-39   spin_unlock(&rcu_gp_lock);
-40   smp_mb();
-41 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Nestable RCU Using a Free-Running Counter}
-\label{fig:app:toyrcu:Nestable RCU Using a Free-Running Counter}
-\end{figure}
-
-Figure~\ref{fig:app:toyrcu:Nestable RCU Using a Free-Running Counter}
+\Cref{lst:app:toyrcu:Nestable RCU Using a Free-Running Counter}
 (\path{rcu_nest.h} and \path{rcu_nest.c})
-show an RCU implementation based on a single global free-running counter,
+shows an RCU implementation based on a single global free-running counter,
 but that permits nesting of RCU read-side critical sections.
 This nestability is accomplished by reserving the low-order bits of the
 global \co{rcu_gp_ctr} to count nesting, using the definitions shown in
-Figure~\ref{fig:app:toyrcu:Data for Nestable RCU Using a Free-Running Counter}.
+\cref{lst:app:toyrcu:Data for Nestable RCU Using a Free-Running Counter}.
 This is a generalization of the scheme in
-Section~\ref{sec:app:toyrcu:RCU Based on Free-Running Counter},
+\cref{sec:app:toyrcu:RCU Based on Free-Running Counter},
 which can be thought of as having a single low-order bit reserved
 for counting nesting depth.
 Two C-preprocessor macros are used to arrange this,
@@ -1487,23 +1144,41 @@ reserves seven bits, for a maximum RCU read-side critical-section
 nesting depth of 127, which should be well in excess of that needed
 by most applications.
 
+\begin{listing}
+\input{CodeSamples/defer/rcu_nest@define.fcv}
+\caption{Data for Nestable RCU Using a Free-Running Counter}
+\label{lst:app:toyrcu:Data for Nestable RCU Using a Free-Running Counter}
+\end{listing}
+
+\begin{listing}
+\input{CodeSamples/defer/rcu_nest@read_lock_unlock.fcv}\vspace*{-11pt}\fvset{firstnumber=last}
+\input{CodeSamples/defer/rcu_nest@synchronize.fcv}\fvset{firstnumber=auto}
+\caption{Nestable RCU Using a Free-Running Counter}
+\label{lst:app:toyrcu:Nestable RCU Using a Free-Running Counter}
+\end{listing}
+
+\begin{fcvref}[ln:defer:rcu_nest:read_lock_unlock:lock]
 The resulting \co{rcu_read_lock()} implementation is still reasonably
 straightforward.
-Line~6 places a pointer to this thread's instance of \co{rcu_reader_gp}
+\Clnref{readgp} places a pointer to
+this thread's instance of \co{rcu_reader_gp}
 into the local variable \co{rrgp}, minimizing the number of expensive
-calls to the pthreads thread-local-state API.
-Line~7 records the current value of \co{rcu_reader_gp} into another
-local variable \co{tmp}, and line~8 checks to see if the low-order
-bits are zero, which would indicate that this is the outermost
-\co{rcu_read_lock()}.
-If so, line~9 places the global \co{rcu_gp_ctr} into \co{tmp} because
-the current value previously fetched by line~7 is likely to be obsolete.
-In either case, line~10 increments the nesting depth, which you will
-recall is stored in the seven low-order bits of the counter.
-Line~11 stores the updated counter back into this thread's instance
-of \co{rcu_reader_gp}, and, finally, line~12 executes a memory
-barrier to prevent the RCU read-side critical section from bleeding out
+calls to the pthreads thread-local-state API\@.
+\Clnref{wtmp1} records the current value of \co{rcu_reader_gp}
+into another local variable \co{tmp}, and \clnref{checktmp} checks
+to see if the low-order bits are zero, which would indicate that
+this is the outermost \co{rcu_read_lock()}.
+If so, \clnref{wtmp2} places the global \co{rcu_gp_ctr}
+into \co{tmp} because the current value previously fetched by
+\clnref{wtmp1} is likely to be obsolete.
+In either case, \clnref{inctmp} increments the nesting depth,
+which you will recall is stored in the seven low-order bits of the counter.
+\Clnref{writegp} stores the updated counter back into this thread's
+instance of \co{rcu_reader_gp}, and,
+finally, \clnref{mb1} executes a memory barrier
+to prevent the RCU read-side critical section from bleeding out
 into the code preceding the call to \co{rcu_read_lock()}.
+\end{fcvref}
 
 In other words, this implementation of \co{rcu_read_lock()} picks up a copy
 of the global \co{rcu_gp_ctr} unless the current invocation of
@@ -1514,44 +1189,50 @@ Either way, it increments whatever value it fetched in order to record
 an additional nesting level, and stores the result in the current
 thread's instance of \co{rcu_reader_gp}.
 
+\begin{fcvref}[ln:defer:rcu_nest:read_lock_unlock:unlock]
 Interestingly enough, despite their \co{rcu_read_lock()} differences,
 the implementation of \co{rcu_read_unlock()}
 is broadly similar to that shown in
-Section~\ref{sec:app:toyrcu:RCU Based on Free-Running Counter}.
-Line~19 executes a memory barrier in order to prevent the RCU read-side
+\cref{sec:app:toyrcu:RCU Based on Free-Running Counter}.
+\Clnref{mb1} executes a memory barrier
+in order to prevent the RCU read-side
 critical section from bleeding out into code following the call
 to \co{rcu_read_unlock()}, and
-line~20 decrements this thread's instance of \co{rcu_reader_gp},
+\clnref{decgp} decrements this thread's instance of \co{rcu_reader_gp},
 which has the effect of decrementing the nesting count contained in
 \co{rcu_reader_gp}'s low-order bits.
 Debugging versions of this primitive would check (before decrementing!)
 that these low-order bits were non-zero.
+\end{fcvref}
 
+\begin{fcvref}[ln:defer:rcu_nest:synchronize:syn]
 The implementation of \co{synchronize_rcu()} is quite similar to
 that shown in
-Section~\ref{sec:app:toyrcu:RCU Based on Free-Running Counter}.
+\cref{sec:app:toyrcu:RCU Based on Free-Running Counter}.
 There are two differences.
-The first is that lines~29 and~30 adds \co{RCU_GP_CTR_BOTTOM_BIT}
-to the global \co{rcu_gp_ctr} instead of adding the constant ``2'',
-and the second is that the comparison on line~33 has been abstracted
-out to a separate function, where it checks the bit indicated
-by \co{RCU_GP_CTR_BOTTOM_BIT} instead of unconditionally checking
-the low-order bit.
+The first is that \clnref{incgp1,incgp2}
+adds \co{RCU_GP_CTR_BOTTOM_BIT} to the global \co{rcu_gp_ctr}
+instead of adding the constant ``2'',
+and the second is that the comparison on \clnref{ongoing}
+has been abstracted out to a separate function,
+where it checks the bits indicated by \co{RCU_GP_CTR_NEST_MASK}
+instead of unconditionally checking the low-order bit.
+\end{fcvref}
 
 This approach achieves read-side performance almost equal to that
 shown in
-Section~\ref{sec:app:toyrcu:RCU Based on Free-Running Counter}, incurring
+\cref{sec:app:toyrcu:RCU Based on Free-Running Counter}, incurring
 roughly 65~nanoseconds of overhead regardless of the number of
-Power5 CPUs.
+\Power{5} CPUs.
 Updates again incur more overhead, ranging from about 600~nanoseconds on
-a single Power5 CPU to more than 100~\emph{microseconds} on 64
+a single \Power{5} CPU to more than 100~\emph{microseconds} on 64
 such CPUs.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Why not simply maintain a separate per-thread nesting-level
 	variable, as was done in previous section, rather than having
 	all this complicated bit manipulation?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	The apparent simplicity of the separate per-thread variable
 	is a red herring.
 	This approach incurs much greater complexity in the guise
@@ -1560,10 +1241,10 @@ such CPUs.
 	critical sections.
 	But don't take my word for it, code it up and see what you
 	end up with!
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 This implementation suffers from the same shortcomings as does that of
-Section~\ref{sec:app:toyrcu:RCU Based on Free-Running Counter}, except that
+\cref{sec:app:toyrcu:RCU Based on Free-Running Counter}, except that
 nesting of RCU read-side critical sections is now permitted.
 In addition, on 32-bit systems, this approach shortens the time
 required to overflow the global \co{rcu_gp_ctr} variable.
@@ -1571,25 +1252,28 @@ The following section shows one way to greatly increase the time
 required for overflow to occur, while greatly reducing read-side
 overhead.
 
-\QuickQuiz{}
+\QuickQuizSeries{%
+\QuickQuizB{
 	Given the algorithm shown in
-	Figure~\ref{fig:app:toyrcu:Nestable RCU Using a Free-Running Counter},
+	\cref{lst:app:toyrcu:Nestable RCU Using a Free-Running Counter},
 	how could you double the time required to overflow the global
 	\co{rcu_gp_ctr}?
-\QuickQuizAnswer{
+}\QuickQuizAnswerB{
+	\begin{fcvref}[ln:defer:rcu_nest:synchronize:syn]
 	One way would be to replace the magnitude comparison on
-	lines~33 and 34 with an inequality check of the per-thread
-	\co{rcu_reader_gp} variable against
+	\clnref{lt1,lt2} with an inequality check of
+	the per-thread \co{rcu_reader_gp} variable against
 	\co{rcu_gp_ctr+RCU_GP_CTR_BOTTOM_BIT}.
-} \QuickQuizEnd
-
-\QuickQuiz{}
+	\end{fcvref}
+}\QuickQuizEndB
+%
+\QuickQuizE{
 	Again, given the algorithm shown in
-	Figure~\ref{fig:app:toyrcu:Nestable RCU Using a Free-Running Counter},
+	\cref{lst:app:toyrcu:Nestable RCU Using a Free-Running Counter},
 	is counter overflow fatal?
 	Why or why not?
 	If it is fatal, what can be done to fix it?
-\QuickQuizAnswer{
+}\QuickQuizAnswerE{
 	It can indeed be fatal.
 	To see this, consider the following sequence of events:
 	\begin{enumerate}
@@ -1626,7 +1310,7 @@ overhead.
 	\end{enumerate}
 
 	Note that scenario can also occur in the implementation presented in
-	Section~\ref{sec:app:toyrcu:RCU Based on Free-Running Counter}.
+	\cref{sec:app:toyrcu:RCU Based on Free-Running Counter}.
 
 	One strategy for fixing this problem is to use 64-bit
 	counters so that the time required to overflow them would exceed
@@ -1670,70 +1354,20 @@ overhead.
 	deterministic execution time in any case!
 	%
 	% @@@ A fourth approach is rcu_nest32.[hc].
-} \QuickQuizEnd
+}\QuickQuizEndE
+}
 
 \section{RCU Based on Quiescent States}
 \label{sec:app:toyrcu:RCU Based on Quiescent States}
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 DEFINE_SPINLOCK(rcu_gp_lock);
-  2 long rcu_gp_ctr = 0;
-  3 DEFINE_PER_THREAD(long, rcu_reader_qs_gp);
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Data for Quiescent-State-Based RCU}
-\label{fig:app:toyrcu:Data for Quiescent-State-Based RCU}
-\end{figure}
-
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 static void rcu_read_lock(void)
-  2 {
-  3 }
-  4
-  5 static void rcu_read_unlock(void)
-  6 {
-  7 }
-  8
-  9 rcu_quiescent_state(void)
- 10 {
- 11   smp_mb();
- 12   __get_thread_var(rcu_reader_qs_gp) =
- 13     ACCESS_ONCE(rcu_gp_ctr) + 1;
- 14   smp_mb();
- 15 }
- 16
- 17 static void rcu_thread_offline(void)
- 18 {
- 19   smp_mb();
- 20   __get_thread_var(rcu_reader_qs_gp) =
- 21     ACCESS_ONCE(rcu_gp_ctr);
- 22   smp_mb();
- 23 }
- 24
- 25 static void rcu_thread_online(void)
- 26 {
- 27   rcu_quiescent_state();
- 28 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Quiescent-State-Based RCU Read Side}
-\label{fig:app:toyrcu:Quiescent-State-Based RCU Read Side}
-\end{figure}
-
-Figure~\ref{fig:app:toyrcu:Quiescent-State-Based RCU Read Side}
+\begin{fcvref}[ln:defer:rcu_qs:read_lock_unlock]
+\Cref{lst:app:toyrcu:Quiescent-State-Based RCU Read Side}
 (\path{rcu_qs.h})
 shows the read-side primitives used to construct a user-level
-implementation of RCU based on quiescent states, with the data shown in
-Figure~\ref{fig:app:toyrcu:Data for Quiescent-State-Based RCU}.
-As can be seen from lines~1-7 in the figure, the \co{rcu_read_lock()}
+implementation of RCU based on \IXpl{quiescent state}, with the data shown in
+\cref{lst:app:toyrcu:Data for Quiescent-State-Based RCU}.
+As can be seen from \clnrefrange{lock:b}{unlock:e} in the listing,
+the \co{rcu_read_lock()}
 and \co{rcu_read_unlock()} primitives do nothing, and can in fact
 be expected to be inlined and optimized away, as they are in
 server builds of the Linux kernel.
@@ -1741,30 +1375,48 @@ This is due to the fact that quiescent-state-based RCU implementations
 \emph{approximate} the extents of RCU read-side critical sections
 using the aforementioned quiescent states.
 Each of these quiescent states contains a call to
-\co{rcu_quiescent_state()}, which is shown from lines~9-15 in the figure.
+\co{rcu_quiescent_state()}, which is shown from
+\clnrefrange{qs:b}{qs:e} in the listing.
 Threads entering extended quiescent states (for example, when blocking)
-may instead call \co{rcu_thread_offline()} (lines~17-23) when entering
+may instead call \co{rcu_thread_offline()}
+(\clnrefrange{offline:b}{offline:e}) when entering
 an extended quiescent state and then call
-\co{rcu_thread_online()} (lines~25-28) when leaving it.
+\co{rcu_thread_online()}
+(\clnrefrange{online:b}{online:e}) when leaving it.
 As such, \co{rcu_thread_online()} is analogous to \co{rcu_read_lock()}
 and \co{rcu_thread_offline()} is analogous to \co{rcu_read_unlock()}.
 In addition, \co{rcu_quiescent_state()} can be thought of as a
 \co{rcu_thread_online()} immediately followed by a
 \co{rcu_thread_offline()}.\footnote{
-	Although the code in the figure is consistent with
+	Although the code in the listing is consistent with
 	\co{rcu_quiescent_state()}
 	being the same as \co{rcu_thread_online()} immediately followed by
 	\co{rcu_thread_offline()}, this relationship is obscured by
 	performance optimizations.}
 It is illegal to invoke \co{rcu_quiescent_state()}, \co{rcu_thread_offline()},
 or \co{rcu_thread_online()} from an RCU read-side critical section.
+\end{fcvref}
 
-In \co{rcu_quiescent_state()}, line~11 executes a memory barrier
+\begin{listing}
+\input{CodeSamples/defer/rcu_qs@define.fcv}
+\caption{Data for Quiescent-State-Based RCU}
+\label{lst:app:toyrcu:Data for Quiescent-State-Based RCU}
+\end{listing}
+
+\begin{listing}
+\input{CodeSamples/defer/rcu_qs@read_lock_unlock.fcv}
+\caption{Quiescent-State-Based RCU Read Side}
+\label{lst:app:toyrcu:Quiescent-State-Based RCU Read Side}
+\end{listing}
+
+\begin{fcvref}[ln:defer:rcu_qs:read_lock_unlock:qs]
+In \co{rcu_quiescent_state()}, \clnref{mb1} executes a memory barrier
 to prevent any code prior to the quiescent state (including possible
 RCU read-side critical sections) from being reordered
 into the quiescent state.
-Lines~12-13 pick up a copy of the global \co{rcu_gp_ctr}, using
-\co{ACCESS_ONCE()} to ensure that the compiler does not employ any
+\Clnrefrange{gp1}{gp2} pick up
+a copy of the global \co{rcu_gp_ctr}, using
+\co{READ_ONCE()} to ensure that the compiler does not employ any
 optimizations that would result in \co{rcu_gp_ctr} being fetched
 more than once,
 and then adds one to the value fetched and stores it into
@@ -1773,15 +1425,19 @@ instance of \co{synchronize_rcu()} will see an odd-numbered value,
 thus becoming aware that a new RCU read-side critical section has started.
 Instances of \co{synchronize_rcu()} that are waiting on older
 RCU read-side critical sections will thus know to ignore this new one.
-Finally, line~14 executes a memory barrier, which prevents subsequent
+Finally, \clnref{mb2} executes a memory barrier, which prevents subsequent
 code (including a possible RCU read-side critical section) from being
-re-ordered with the lines~12-13.
+re-ordered with the \clnrefrange{gp1}{gp2}.
+\end{fcvref}
 
-\QuickQuiz{}
-	Doesn't the additional memory barrier shown on line~14 of
-	Figure~\ref{fig:app:toyrcu:Quiescent-State-Based RCU Read Side}
+\QuickQuiz{
+	\begin{fcvref}[ln:defer:rcu_qs:read_lock_unlock:qs]
+	Doesn't the additional memory barrier shown on \clnref{mb2} of
+	\cref{lst:app:toyrcu:Quiescent-State-Based RCU Read Side}
 	greatly increase the overhead of \co{rcu_quiescent_state}?
-\QuickQuizAnswer{
+	\end{fcvref}
+}\QuickQuizAnswer{
+	\begin{fcvref}[ln:defer:rcu_qs:read_lock_unlock:qs]
 	Indeed it does!
 	An application using this implementation of RCU should therefore
 	invoke \co{rcu_quiescent_state} sparingly, instead using
@@ -1789,16 +1445,18 @@ re-ordered with the lines~12-13.
 	time.
 
 	However, this memory barrier is absolutely required so that
-	other threads will see the store on lines~12-13 before any
+	other threads will see the store on
+	\clnrefrange{gp1}{gp2} before any
 	subsequent RCU read-side critical sections executed by the
 	caller.
-} \QuickQuizEnd
+	\end{fcvref}
+}\QuickQuizEnd
 
 Some applications might use RCU only occasionally, but use it very heavily
 when they do use it.
 Such applications might choose to use \co{rcu_thread_online()} when
 starting to use RCU and \co{rcu_thread_offline()} when no longer
-using RCU.
+using RCU\@.
 The time between a call to \co{rcu_thread_offline()} and a subsequent
 call to \co{rcu_thread_online()} is an extended quiescent state,
 so that RCU will not expect explicit quiescent states to be registered
@@ -1810,79 +1468,61 @@ per-thread \co{rcu_reader_qs_gp} variable to the current value of
 Any concurrent instances of \co{synchronize_rcu()} will thus know to
 ignore this thread.
 
-\QuickQuiz{}
-	Why are the two memory barriers on lines~19 and 22 of
-	Figure~\ref{fig:app:toyrcu:Quiescent-State-Based RCU Read Side}
+\QuickQuiz{
+	\begin{fcvref}[ln:defer:rcu_qs:read_lock_unlock:qs]
+	Why are the two memory barriers on \clnref{mb1,mb2} of
+	\cref{lst:app:toyrcu:Quiescent-State-Based RCU Read Side}
 	needed?
-\QuickQuizAnswer{
-	The memory barrier on line~19 prevents any RCU read-side
+	\end{fcvref}
+}\QuickQuizAnswer{
+	\begin{fcvref}[ln:defer:rcu_qs:read_lock_unlock:qs]
+	The memory barrier on \clnref{mb1} prevents any RCU read-side
 	critical sections that might precede the
 	call to \co{rcu_thread_offline()} won't be reordered by either
-	the compiler or the CPU to follow the assignment on lines~20-21.
-	The memory barrier on line~22 is, strictly speaking, unnecessary,
+	the compiler or the CPU to follow the assignment on
+	\clnrefrange{gp1}{gp2}.
+	The memory barrier on \clnref{mb2} is, strictly speaking, unnecessary,
 	as it is illegal to have any RCU read-side critical sections
 	following the call to \co{rcu_thread_offline()}.
-} \QuickQuizEnd
+	\end{fcvref}
+}\QuickQuizEnd
 
 The \co{rcu_thread_online()} function simply invokes
 \co{rcu_quiescent_state()}, thus marking the end of the extended
 quiescent state.
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 void synchronize_rcu(void)
-  2 {
-  3   int t;
-  4
-  5   smp_mb();
-  6   spin_lock(&rcu_gp_lock);
-  7   rcu_gp_ctr += 2;
-  8   smp_mb();
-  9   for_each_thread(t) {
- 10     while (rcu_gp_ongoing(t) &&
- 11            ((per_thread(rcu_reader_qs_gp, t) -
- 12              rcu_gp_ctr) < 0)) {
- 13       poll(NULL, 0, 10);
- 14     }
- 15   }
- 16   spin_unlock(&rcu_gp_lock);
- 17   smp_mb();
- 18 }
-\end{verbbox}
-}
-\centering
-\theverbbox
+\begin{listing}
+\input{CodeSamples/defer/rcu_qs@synchronize.fcv}
 \caption{RCU Update Side Using Quiescent States}
-\label{fig:app:toyrcu:RCU Update Side Using Quiescent States}
-\end{figure}
+\label{lst:app:toyrcu:RCU Update Side Using Quiescent States}
+\end{listing}
 
-Figure~\ref{fig:app:toyrcu:RCU Update Side Using Quiescent States}
+\Cref{lst:app:toyrcu:RCU Update Side Using Quiescent States}
 (\path{rcu_qs.c})
 shows the implementation of \co{synchronize_rcu()}, which is
 quite similar to that of the preceding sections.
 
 This implementation has blazingly fast read-side primitives, with
-an \co{rcu_read_lock()}-\co{rcu_read_unlock()} round trip incurring
+an \co{rcu_read_lock()}--\co{rcu_read_unlock()} round trip incurring
 an overhead of roughly 50~\emph{picoseconds}.
 The \co{synchronize_rcu()} overhead ranges from about 600~nanoseconds
-on a single-CPU Power5 system up to more than 100~microseconds on
+on a single-CPU \Power{5} system up to more than 100~microseconds on
 a 64-CPU system.
 
-\QuickQuiz{}
-	To be sure, the clock frequencies of Power
+\QuickQuiz{
+	To be sure, the clock frequencies of \Power{}
 	systems in 2008 were quite high, but even a 5\,GHz clock
 	frequency is insufficient to allow
 	loops to be executed in 50~picoseconds!
 	What is going on here?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Since the measurement loop contains a pair of empty functions,
 	the compiler optimizes it away.
 	The measurement loop takes 1,000 passes between each call to
 	\co{rcu_quiescent_state()}, so this measurement is roughly
 	one thousandth of the overhead of a single call to
 	\co{rcu_quiescent_state()}.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 However, this implementation requires that each thread either
 invoke \co{rcu_quiescent_state()} periodically or to invoke
@@ -1891,13 +1531,14 @@ The need to invoke these functions periodically can make this
 implementation difficult to use in some situations, such as for
 certain types of library functions.
 
-\QuickQuiz{}
+\QuickQuizSeries{%
+\QuickQuizB{
 	Why would the fact that the code is in a library make
 	any difference for how easy it is to use the RCU
 	implementation shown in
-	Figures~\ref{fig:app:toyrcu:Quiescent-State-Based RCU Read Side} and
-	\ref{fig:app:toyrcu:RCU Update Side Using Quiescent States}?
-\QuickQuizAnswer{
+	\cref{lst:app:toyrcu:Quiescent-State-Based RCU Read Side,%
+	lst:app:toyrcu:RCU Update Side Using Quiescent States}?
+}\QuickQuizAnswerB{
 	A library function has absolutely no control over the caller,
 	and thus cannot force the caller to invoke \co{rcu_quiescent_state()}
 	periodically.
@@ -1906,33 +1547,34 @@ certain types of library functions.
 	\co{rcu_thread_online()} upon entry,
 	\co{rcu_quiescent_state()} periodically, and
 	\co{rcu_thread_offline()} upon exit.
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndB
+%
+\QuickQuizE{
 	But what if you hold a lock across a call to
 	\co{synchronize_rcu()}, and then acquire that same lock within
 	an RCU read-side critical section?
 	This should be a deadlock, but how can a primitive that
 	generates absolutely no code possibly participate in a
 	deadlock cycle?
-\QuickQuizAnswer{
+}\QuickQuizAnswerE{
 	Please note that the RCU read-side critical section is in
 	effect extended beyond the enclosing
 	\co{rcu_read_lock()} and \co{rcu_read_unlock()}, out to
 	the previous and next call to \co{rcu_quiescent_state()}.
-	This \co{rcu_quiescent_state} can be thought of as a
+	This \co{rcu_quiescent_state} can be thought of as an
 	\co{rcu_read_unlock()} immediately followed by an
 	\co{rcu_read_lock()}.
 
 	Even so, the actual deadlock itself will involve the lock
 	acquisition in the RCU read-side critical section and
 	the \co{synchronize_rcu()}, never the \co{rcu_quiescent_state()}.
-} \QuickQuizEnd
+}\QuickQuizEndE
+}
 
 In addition, this implementation does not permit concurrent calls
 to \co{synchronize_rcu()} to share grace periods.
 That said, one could easily imagine a production-quality RCU
-implementation based on this version of RCU.
+implementation based on this version of RCU\@.
 
 \section{Summary of Toy RCU Implementations}
 \label{sec:app:toyrcu:Summary of Toy RCU Implementations}
@@ -1961,7 +1603,7 @@ create a new RCU implementation.
 	In particular, expensive operations such as cache misses,
 	atomic instructions, memory barriers, and branches should
 	be avoided.
-\item	RCU read-side primitives should have $O\left(1\right)$ computational
+\item	RCU read-side primitives should have $\O{1}$ computational
 	complexity to enable real-time use.
 	(This implies that readers run concurrently with updaters.)
 \item	RCU read-side primitives should be usable in all contexts
@@ -1991,11 +1633,11 @@ create a new RCU implementation.
 	violate this desideratum.)
 \end{enumerate}
 
-\QuickQuiz{}
+\QuickQuiz{
 	Given that grace periods are prohibited within RCU read-side
 	critical sections, how can an RCU data structure possibly be
 	updated while in an RCU read-side critical section?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	This situation is one reason for the existence of asynchronous
 	grace-period primitives such as \co{call_rcu()}.
 	This primitive may be invoked within an RCU read-side critical
@@ -2006,4 +1648,6 @@ create a new RCU implementation.
 	critical section can be extremely convenient, and is analogous
 	to a (mythical) unconditional read-to-write upgrade for
 	reader-writer locking.
-} \QuickQuizEnd
+}\QuickQuizEnd
+
+\QuickQuizAnswersChp{qqztoyrcu}

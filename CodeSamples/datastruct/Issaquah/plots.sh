@@ -20,9 +20,10 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# Copyright (C) IBM Corporation, 2009
+# Copyright (C) IBM Corporation, 2009-2019
+# Copyright (C) Facebook, 2019
 #
-# Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+# Authors: Paul E. McKenney <paulmck@kernel.org>
 
 for i in lookup data data-moves
 do

@@ -62,7 +62,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2008 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2008-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 /*
@@ -172,7 +173,7 @@ void perftestrun(int nthreads, int nreaders, int nupdaters)
 	        (double)n_reads),
 	       ((duration * 1000*1000*1000.*(double)nupdaters) /
 	        (double)n_updates));
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 void perftest(int nreaders, int cpustride)
@@ -222,7 +223,7 @@ void uperftest(int nupdaters, int cpustride)
  * Stress test.
  */
 
-#define HAZPTR_STRESS_PIPE_LEN (R * (NR_THREADS + 1))
+#define HAZPTR_STRESS_PIPE_LEN (R)
 
 struct hazptr_stress {
 	hazptr_head_t hh;
@@ -250,6 +251,8 @@ void *hazptr_read_stress_test(void *arg)
 	hazptr_register_thread();
 	while (goflag == GOFLAG_RUN) {
 		p = hp_record((void *)&hazptr_stress_current, &HP[base]);
+		if (!p)
+			continue;
 		if (p->mbtest == 0)
 			n_mberror++;
 		pc = p->pipe_count;
@@ -363,7 +366,7 @@ void stresstest(int nreaders)
 			printf(" %d:%lld", i, sum);
 	}
 	printf("\n");
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 /*
@@ -373,7 +376,7 @@ void stresstest(int nreaders)
 void usage(int argc, char *argv[])
 {
 	fprintf(stderr, "Usage: %s [nreaders [ perf | stress ] ]\n", argv[0]);
-	exit(-1);
+	exit(EXIT_FAILURE);
 }
 
 int main(int argc, char *argv[])

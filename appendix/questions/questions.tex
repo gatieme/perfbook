@@ -1,30 +1,53 @@
 % appendix/questions/questions.tex
+% mainfile: ../../perfbook.tex
 % SPDX-License-Identifier: CC-BY-SA-3.0
 
-\QuickQuizChapter{cha:app:Important Questions}{Important Questions}
+\QuickQuizChapter{cha:app:Important Questions}{Important Questions}{qqzquestions}
 %
 \Epigraph{Ask me no questions, and I'll tell you no fibs.}
 	 {\emph{``She Stoops to Conquer'', Oliver Goldsmith}}
 
 The following sections discuss some important questions relating to
 SMP programming.
-Each section also shows how to {\em avoid} having to worry about
+Each section also shows how to avoid worrying about
 the corresponding question, which can be extremely important if
 your goal is to simply get your SMP code working as quickly and
 painlessly as possible---which is an excellent goal, by the way!
 
-Although the answers to these questions are often quite a bit less
+Although the answers to these questions are often less
 intuitive than they would be in a single-threaded setting,
 with a bit of work, they are not that difficult to understand.
-If you managed to master recursion, there is nothing in here that should
+If you managed to master recursion, there is nothing here that should
 pose an overwhelming challenge.
 
-% @@@ roadmap...
+With that, here are the questions:
 
-% @@@ doesn't parallel automatically make things faster? (locked increment)
-% @@@ doesn't getting rid of locks get rid of all these problems? (atomic inc)
-% @@@ doesn't NBS take care of all these problems? (cite IPDPS paper)
+\begin{enumerate}
+\item	Why aren't parallel programs always faster?
+	(\cref{sec:app:questions:Why Aren't Parallel Programs Always Faster?})
+\item	Why not remove locking?
+	(\cref{sec:app:questions:Why Not Remove Locking?})
+\item	What time is it?
+	(\cref{sec:app:questions:What Time Is It?}
+\item	What does ``after'' mean?
+	(\cref{sec:app:questions:What Does ``After'' Mean?})
+\item	How much ordering is needed?
+	(\cref{sec:app:questions:How Much Ordering Is Needed?})
+\item	What is the difference between ``concurrent'' and ``parallel''?
+	(\cref{sec:app:questions:What is the Difference Between ``Concurrent'' and ``Parallel''?})
+\item	Why is software buggy?
+	(\cref{sec:app:questions:Why Is Software Buggy?})
+\end{enumerate}
 
-\input{appendix/questions/after}
-\input{appendix/questions/concurrentparallel}
+Read on to learn some answers.
+Improve upon these answers if you can!
+
+\input{appendix/questions/parallelfaster}
+\input{appendix/questions/removelocking}
 \input{appendix/questions/time}
+\input{appendix/questions/after}
+\input{appendix/questions/ordering}
+\input{appendix/questions/concurrentparallel}
+\input{appendix/questions/buggy}
+
+\QuickQuizAnswersChp{qqzquestions}

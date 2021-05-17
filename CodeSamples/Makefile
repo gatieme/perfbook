@@ -33,11 +33,15 @@ ifneq ($(strip $(target)),)
 	cat arch-$(target)/arch-$(target).h >> api.h
 	echo "" >> api.h
 endif
-	cat api-pthreads/api-pthreads.h >> api.h
+	cat api-pthreads/api-pthreads.h | \
+		sed '/begin{snippet}/d' | \
+		sed '/end{snippet}/d' >> api.h
 	echo "" >> api.h
 	cat api-pthreads/api-gcc.h >> api.h
 	echo "" >> api.h
-	if test -f /usr/include/urcu-call-rcu.h -o -f /usr/local/include/urcu-call-rcu.h ; \
+	if test -f /usr/include/urcu-call-rcu.h -o \
+		-f /usr/local/include/urcu-call-rcu.h -o \
+		-f /usr/include/$(subdir_ub)/urcu-call-rcu.h ; \
 	then \
 		echo "#define _LGPL_SOURCE" >> api.h; \
 		echo "#include <urcu/rculist.h>" >> api.h; \

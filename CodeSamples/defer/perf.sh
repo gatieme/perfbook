@@ -16,9 +16,10 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# Copyright (C) IBM Corporation, 2008
+# Copyright (C) IBM Corporation, 2008-2019
+# Copyright (C) Facebook, 2019
 #
-# Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+# Authors: Paul E. McKenney <paulmck@kernel.org>
 
 for rcu in rcu rcu64 rcu_lock rcu_lock_percpu rcu_nest rcu_nest32 \
 	rcu_nest_qs rcu_qs rcu_rcg rcu_rcpg rcu_rcpl rcu_rcpls rcu_ts

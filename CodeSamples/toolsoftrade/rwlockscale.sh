@@ -2,6 +2,8 @@
 #
 # Test script for rwlockscale
 #
+# Usage: rwlockscale.sh [ lastcpu ]
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
@@ -16,18 +18,29 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# Copyright (C) IBM Corporation, 2009
+# Copyright (C) IBM Corporation, 2009-2019
+# Copyright (C) Facebook, 2019
 #
-# Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+# Authors: Paul E. McKenney <paulmck@kernel.org>
 
-for ((ncpus = 1; ncpus <= 128; ncpus += 2))
+maxcpu="`grep '^processor' /proc/cpuinfo | tail -1 | awk '{ print $3 }'`"
+lastcpu=${1-$maxcpu}
+
+incr=1
+for ((ncpus = 1; ncpus <= lastcpu; ncpus += incr))
 do
-	for hold in 1000 10000 100000 1000000 10000000 100000000
+	for ((i = 0; i < 6; i++))
 	do
-		for ((i = 0; i < 3; i++))
+		for hold in 1 10 100 1000 10000
 		do
-			./prwl_scale $ncpus $hold 0
-			./prwl_scale $ncpus 0 $hold
+			./rwlockscale $ncpus $hold 0
 		done
 	done
+	if ((ncpus >= 128))
+	then
+		incr=4
+	elif ((ncpus >= 16))
+	then
+		incr=2
+	fi
 done

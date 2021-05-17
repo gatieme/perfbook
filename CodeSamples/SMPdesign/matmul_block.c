@@ -15,7 +15,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2009 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2009-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include "../api.h"
@@ -83,7 +84,7 @@ int main(int argc, char *argv[])
 	bands = malloc(sizeof(bands[0]) * nthread);
 	if (a == NULL || b == NULL || c == NULL || bands == NULL) {
 		printf("Out of memory\n");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	for (i = 0; i < dim; i++)
 		for (j = 0; j < dim; j++) {
@@ -110,5 +111,5 @@ int main(int argc, char *argv[])
 	endtime = get_microseconds();
 	printf("dim = %ld, nthread = %d, duration = %lld : %lld us\n",
 	       dim, nthread, endtime - startcreatetime, endtime - starttime);
-	return 0;
+	return EXIT_SUCCESS;
 }

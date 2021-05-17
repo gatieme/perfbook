@@ -16,28 +16,31 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2009 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2009-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include "../api.h"
 
-unsigned long counter = 0;
+//\begin{snippet}[labelbase=ln:count:count_nonatomic:inc-read,commandchars=\\\[\]]
+unsigned long counter = 0;				//\lnlbl{counter}
 
-void inc_count(void)
+static __inline__ void inc_count(void)
 {
-	counter++;
+	WRITE_ONCE(counter, READ_ONCE(counter) + 1);	//\lnlbl{inc}
 }
 
-unsigned long read_count(void)
+static __inline__ unsigned long read_count(void)
 {
-	return counter;
+	return READ_ONCE(counter);			//\lnlbl{read}
+}
+//\end{snippet}
+
+static __inline__ void count_init(void)
+{
 }
 
-void count_init(void)
-{
-}
-
-void count_cleanup(void)
+static __inline__ void count_cleanup(void)
 {
 }
 

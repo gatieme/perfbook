@@ -1,29 +1,31 @@
 % cpu/cpu.tex
+% mainfile: ../perfbook.tex
 % SPDX-License-Identifier: CC-BY-SA-3.0
 
-\QuickQuizChapter{chp:Hardware and its Habits}{Hardware and its Habits}
+\QuickQuizChapter{chp:Hardware and its Habits}{Hardware and its Habits}{qqzcpu}
 %
 \Epigraph{Premature abstraction is the root of all evil.}
 	 {\emph{A cast of thousands}}
 
-Most people have an intuitive understanding that passing messages between
-systems is considerably more expensive than performing simple calculations
-within the confines of a single system.
-However, it is not always so clear that communicating among threads within
-the confines of a single shared-memory system can also be quite expensive.
+Most people intuitively understand that passing messages between systems
+is more expensive than performing simple calculations within the confines
+of a single system.
+But it is also the case that communicating among threads within the
+confines of a single shared-memory system can also be quite expensive.
 This chapter therefore looks at the cost of synchronization and communication
 within a shared-memory system.
 These few pages can do no more than scratch the surface of shared-memory
 parallel hardware design; readers desiring more detail would do well
-to start with a recent edition of Hennessy and Patterson's classic
-text~\cite{Hennessy2011,Hennessy95a}.
+to start with a recent edition of \pplsur{John L.}{Hennessy}'s and
+\pplsur{David A.}{Patterson}'s classic
+text~\cite{Hennessy2017,Hennessy95a}.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Why should parallel programmers bother learning low-level
 	properties of the hardware?
-	Wouldn't it be easier, better, and more general to remain at
+	Wouldn't it be easier, better, and more elegant to remain at
 	a higher level of abstraction?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	It might well be easier to ignore the detailed properties of
 	the hardware, but in most cases it would be quite foolish
 	to do so.
@@ -40,7 +42,7 @@ text~\cite{Hennessy2011,Hennessy95a}.
 	If not, why would you expect a parallel programmer to be
 	able to develop competent parallel software without at least
 	\emph{some} understanding of the underlying hardware?
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 \input{cpu/overview}
 \input{cpu/overheads}
@@ -61,9 +63,11 @@ So, to sum up:
 The remainder of this book describes ways of handling this bad news.
 
 In particular,
-Chapter~\ref{chp:Tools of the Trade} will cover some of the low-level
+\cref{chp:Tools of the Trade} will cover some of the low-level
 tools used for parallel programming,
-Chapter~\ref{chp:Counting} will investigate problems and solutions to
+\cref{chp:Counting} will investigate problems and solutions to
 parallel counting, and
-Chapter~\ref{cha:Partitioning and Synchronization Design}
+\cref{cha:Partitioning and Synchronization Design}
 will discuss design disciplines that promote performance and scalability.
+
+\QuickQuizAnswersChp{qqzcpu}

@@ -17,24 +17,26 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2016 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2016-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include "../api.h"
 
 /* Route-table entry to be included in the routing list. */
-struct route_entry {
+//\begin{snippet}[labelbase=ln:defer:route_seq:lookup_add_del,commandchars=\\\[\]]
+struct route_entry {					//\lnlbl{entry:b}
 	struct cds_list_head re_next;
 	unsigned long addr;
 	unsigned long iface;
-};
-
-CDS_LIST_HEAD(route_list);
+};							//\lnlbl{entry:e}
+							//\fcvexclude
+CDS_LIST_HEAD(route_list);				//\lnlbl{entry:header}
 
 /*
- * Look up a route entry, return the corresponding interface. 
+ * Look up a route entry, return the corresponding interface.
  */
-unsigned long route_lookup(unsigned long addr)
+unsigned long route_lookup(unsigned long addr)		//\lnlbl{lookup:b}
 {
 	struct route_entry *rep;
 	unsigned long ret;
@@ -46,12 +48,12 @@ unsigned long route_lookup(unsigned long addr)
 		}
 	}
 	return ULONG_MAX;
-}
+}							//\lnlbl{lookup:e}
 
 /*
  * Add an element to the route table.
  */
-int route_add(unsigned long addr, unsigned long interface)
+int route_add(unsigned long addr, unsigned long interface)//\lnlbl{add:b}
 {
 	struct route_entry *rep;
 
@@ -62,12 +64,12 @@ int route_add(unsigned long addr, unsigned long interface)
 	rep->iface = interface;
 	cds_list_add(&rep->re_next, &route_list);
 	return 0;
-}
+}							//\lnlbl{add:e}
 
 /*
  * Remove the specified element from the route table.
  */
-int route_del(unsigned long addr)
+int route_del(unsigned long addr)			//\lnlbl{del:b}
 {
 	struct route_entry *rep;
 
@@ -79,7 +81,8 @@ int route_del(unsigned long addr)
 		}
 	}
 	return -ENOENT;
-}
+}							//\lnlbl{del:e}
+//\end{snippet}
 
 /*
  * Clear all elements from the route table.

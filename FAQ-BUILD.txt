@@ -17,6 +17,8 @@
 	A.	"make hb" will build perfbook-hb.pdf that is useful
 		for making hard-bound printouts.
 		"make 2c" will build perfbook.pdf.
+		"make help" will show you the list of official targets.
+		"make help-full" will display all the available targets.
 
 4.	Isn't it possible to build perfbook-1c.pdf by just typing
 	"make"?
@@ -34,43 +36,74 @@
 	find it?
 
 	A.	The "pdflatex" package is a variant of Don Knuth's
-		digital typesetting program.  On Ubuntu Trusty and Xenial,
-		installing the following set of packages suffices:
+		digital typesetting program, which you can install.
+		Alternatively, you can use the container image described
+		in #14 below.  Otherwise, instructions follow.
 
-			texlive-latex-base texlive-latex-extra psutils
-			texlive-publishers-doc texlive-fonts-extra
-			texlive-math-extra texlive-publishers
-			texlive-science texlive-bibtex-extra latex2html
-			gnuplot-x11 xfig inkscape graphviz fig2ps
+		On Ubuntu Bionic and Focal, the following list should cover
+		necessary packages (except for -doc packages):
+			texlive-publishers texlive-pstricks
+			texlive-science texlive-fonts-extra
+			xfig inkscape graphviz fig2ps
 
-		On Fedora 24, installing the following set of packages
+		Ubuntu Bionic has a buggy/incompatible version of LaTeX
+		packages "cleveref" and "glossaries-extra".
+		See #10 below to install the latest one.
+
+		On Ubuntu Bionic, you also need to fetch a version of
+		a2ping which is compatible with updated Ghostscript.
+		See #7 below.
+
+		On Fedora, installing the following set of packages
 		suffices:
-			fig2ps graphviz texlive-epstopdf inkscape latex2html
+			texlive-collection-plaingeneric
+			texlive-collection-binextra
 			texlive-collection-latexextra
+			texlive-collection-fontsextra
+			texlive-collection-fontutils
+			fig2ps graphviz inkscape
 
-		Other systems might provide similarly named packages.
-		For example, Doug Miller noted that the following list
-		of teTeX components worked for him on RHEL5:
+		On other Linux distributions such as RHEL/CentOS and
+		Scientific Linux, where support of TeX Live packages
+		is insufficient, the aforementioned container image
+		provides the needed support.  Again, see #14 below.
 
-			tetex tetex-afm tetex-dvips tetex-latex latex2html
-			texinfo tetex-fonts tetex-doc tetex-xdvi
+		Of course, you can install upstream TeX Live.
+		See: https://www.tug.org/texlive/quickinstall.html
 
-		For another example, Frederic Weisbecker reports that
-		the following packages allows perfbook to be built on
-		Fedora 19:
+		NOTE: In doing so, you might end up in having
+			redundant texlive packages of your choice
+			of distribution to satisfy dependency
+			of other packages.
 
-			texlive-latex texlive-collection-latexextra
-			psutils texlive-math* texlive-bibtex latex2html
-			xfig (and maybe also gnuplot-latex
-			texlive-publishers-doc texlive-fonts-extra
-			texlive-science).
+		Besides TeX Live, you need the following list of
+		packages:
+			fig2ps graphviz inkscape
 
 6.	I cannot build perfbook, and the perfbook.log file complains
 	about some obscure package being missing.  What do I do?
 
 	A.	Please see #5 above.
 
-7.	When I try to build perfbook, it hangs after printing a line
+7.	Building perfbook aborts with error "You need to update a2ping".
+	What can I do?
+
+	A.	a2ping 2.77p has become incompatible with up-to-date
+		Ghostscript on most Linux distributions since September
+		2018 due to security fixes backported from Ghostscript
+		9.22 and later. a2ping 2.83p has lost compatibility with
+		Ghostscript 9.50 due to a change in default behavior.
+		A compatible a2ping (2.84p) is available at:
+
+			https://www.ctan.org/pkg/a2ping
+
+		Copy "a2ping.pl" as "a2ping" into a directory which
+		precedes /usr/bin in your PATH setting.
+
+		a2ping 2.84p is available in TeX Live 2020 or later
+		(Including TeX Live 2019/Debian).
+
+8.	When I try to build perfbook, it hangs after printing a line
 	reading "pdflatex 1".  How can I fix this?
 
 	A.	On UNIX-like systems, including Linux, type control-D.
@@ -84,18 +117,25 @@
 		perfbook.log output (or perfbook-1c.log output, depending
 		on which you were building) so that I can fix the scripts.
 
-8.	Some of experimental targets for alternative font won't build
-	due to lack of necessary packages such as "newtxtt". How can I
-	install those packages?
+9.	Building perfbook or some of its experimental targets with
+	alternative fonts fails due to a lack of font packages such as
+	"nimbus15", "newtxtt", etc.; or an old version of font package
+	"newtx".  How can I install or update them?
 
-	A.	The simplest approach is to upgrade to a recent TeX
-		distribution such as TeX Live 2016.  Upgrading your Linux
-		distribution (e.g. to Ubuntu Xenial) is one way to
-		upgrade TeX Live (to 2015 on Xenial), and might	have many
-		other benefits as well.
+	A.	First of all, building perfbook requires TeX Live 2017/Debian
+		(Ubuntu Bionic) or later. If you are told you don't have
+		"glossaries-extra" package, you need to upgrade your TeX
+		installation.
+		For other optional font packages, upgrading TeX Live
+		to 2017/Debian (Ubuntu Bionic) or later should suffice.
 
-		However, if you prefer to manually install individual
-		packages, refer to "Method 3" in:
+		Upgrading your Linux distribution (e.g. to Ubuntu Focal)
+		is one way to upgrade TeX Live (to 2019/Debian on Focal),
+		and might have many other benefits as well.
+
+		However, on modern TeX Live, installing -fonts-extra consumes
+		more than 1GB of your disk space. If you prefer to manually
+		install individual packages on Ubuntu, refer to "Method 3" in:
 
 			http://tex.stackexchange.com/questions/73016/
 
@@ -104,16 +144,175 @@
 
 			http://tex.stackexchange.com/questions/88423/
 
-		Note: If available, you can use the <package>.tds.zip,
-		which will automatically put the files in a relatively
-		right place. Note that font packages should be copied to
-		the TEXMFLOCAL directory rather than to the TEXMFHOME
-		directory.
+		Following is a list of links to font packages perfbook
+		depends on as of January 2020 which are not included
+		in -fonts-recommended:
 
-		Following is a list of links to optional packages as of
-		March 2017:
-
+			https://www.ctan.org/pkg/newtx
 			https://www.ctan.org/pkg/newtxtt
 			https://www.ctan.org/pkg/nimbus15
+			https://www.ctan.org/pkg/courier-scaled
 			https://www.ctan.org/pkg/inconsolata
-			https://www.ctan.org/pkg/mathastext
+			https://www.ctan.org/pkg/newtxsf
+			https://www.ctan.org/pkg/mdsymbol (for Fedora/CentOS)
+
+	    Note 1: Manually installing a font package newer than the one
+		already exists in your TeX installation is a tricky business
+		and should be avoided unless you have a very good knowledge
+		of the infamously complex TeX font system.  In most cases,
+		upgrading TeX installation should be your way to go.
+
+	    Note 2: Most font packages on the CTAN site provide .zip archives
+		which will automatically put the files in a relatively
+		right place. Note that font packages should be copied to the
+		TEXMFLOCAL directory rather than to the TEXMFHOME directory.
+
+	    Note 3: On Fedora and upstream TeX Live, you can install font
+		packages one by one using the following command (example
+		of newtx).
+
+		On Fedora:
+			sudo dnf install texlive-newtx
+
+		On upstream TeX Live (assuming user mode installation):
+			tlmgr install newtx
+
+10.	Building perfbook fails with a warning of buggy cleveref or
+	version mismatch of epigraph.
+	What can I do?
+
+	A.	They are known issues on Ubuntu Bionic (cleveref,
+		glossaries-extra), and TeX Live releases prior to 2020
+		(epigraph).
+		This answer assumes Ubuntu, but it should work on other
+		distros.
+
+	    1.	Download whichever package from CTAN mirror:
+		http://mirrors.ctan.org/macros/latex/contrib/cleveref.zip
+		http://mirrors.ctan.org/macros/latex/contrib/epigraph.zip
+		http://mirrors.ctan.org/macros/latex/contrib/glossaries-extra.zip
+
+	    2.	Install it by following instructions at:
+		https://help.ubuntu.com/community/LaTeX#Installing_packages_manually
+
+	B.	Instead of above manual steps, you could install the package
+		using a script in this repository,
+		'./utilities/install_latex_package.sh'.  For example:
+
+			$ ./utilities/install_latex_package.sh epigraph
+
+11.	Is it possible to generate SyncTeX database file?
+
+	A.	Yes, it is. Setting an environment variable:
+
+		    $ export LATEX_OPT="-synctex=1"
+
+		and doing "make clean; make" will generate
+		perfbook.synctex.gz. This will enable SyncTeX search
+		(.pdf <-> .tex) with a SyncTeX-supporting combination of
+		pdf viewer and editor.
+
+	    Notes:
+	      -	For an introduction of SyncTeX search (gedit <-> evince), see:
+
+		    https://help.gnome.org/users/evince/stable/index.html.en#synctex
+
+		Other combinations of SyncTeX-supporting viewers and editors
+		may work.
+
+	      - You need to install gedit-plugins and enable SyncTeX plugin
+		in gedit's preference.
+
+	      - You need to open one of LaTeX sources (e.g. perfbook.tex)
+		in gedit before doing inverse search from evince.
+
+	      - The environment variable LATEX_OPT works for other build
+		targets such as perfbook-1c.pdf, perfbook-hb.pdf, etc.
+		To enable forward search from gedit, run e.g.:
+
+		    $ utilities/synctex-forward.sh 1c
+
+	      - Changes made by utilities/synctex-forward.sh can be
+		reverted by running:
+
+		    $ utilitied/synctex-forward.sh
+
+		Please make sure to revert the changes before doing
+		"git commit" of the other updates you've made.
+
+12.	Figures of gnuplot in perfbook I built have their upper end
+	trimmed.  What am I missing?
+
+	A.	This is a known issue on Fedora as of November 2, 2019.
+		Its Ghostscript (9.27) has regression in bounding box
+		calculation. It has been fixed since in the upstream
+		Ghostscript.
+
+		    https://bugs.ghostscript.com/show_bug.cgi?id=700988
+
+		Installing upstream Ghostscript 9.50 (or later) should
+		work with you, but see #7 above to get a compatible a2ping.
+
+		"make neatfreak; make" will rebuild all the figures.
+		The "-jN" option should accelerate the rebuild.
+
+	    Note:
+		Fedora 32 has a fixed version of Ghostscript (9.52).
+
+13.	After updating or installing texlive packages on Fedora,
+	build fails with the message from bibtex saying:
+
+		I found no \bibdata command---while reading file perfbook.aux
+		I found no \bibstyle command---while reading file perfbook.aux
+
+	Is there any workaround?
+
+	A.	Try rebuilding database files by the following commands:
+
+		    sudo updmap-sys --syncwithtrees --force
+		    sudo updmap-sys
+
+14.	I want a stable environment to build perfbook.pdf.
+	Can't I just use some container image?
+
+	A.	You can find a template Dockerfile under the docker/
+		subdirectory.  You can pull the container image built from
+		it as follows:
+
+		    docker pull akiyks/perfbook-build-focal:latest
+
+		It can be run with the command:
+
+		    docker run --rm -it -v <path to perfbook dir>:/work \
+		      akiyks/perfbook-build-focal:latest
+
+		Note:
+		The prebuilt container image assumes <uid:pid> = <1000:1000>.
+		If you have different IDs, you can still run the image by
+		adding the option:
+
+		     -u $(id -u):$(id -g)
+
+		to the "docker run" command.  The bash prompt will be in the
+		form of "I have no name!@abcdef012345:/work$".	Builds of
+		perfbook will nevertheless succeed.  You can also build
+		a container image of your own:
+
+		    cd docker
+		    docker build -t <container image tag> \
+		      --build-arg uid=$(id -u) --build-arg gid=$(id -g) .
+
+		For those prefer a Fedora-based container image,
+		akiyks/perfbook-build-fedora:latest is also available.
+		It is built from docker/Dockerfile.fedora.
+
+		If you have podman already installed, you can run the image
+		with podman. podman maps container's root to your host uid
+		by default.
+		Use the following command to run:
+
+		    podman run --rm -it -v <path to perfbook dir>:/work:z \
+		      -u 0:0 akiyks/perfbook-build-fedora:latest
+
+		You will see a prompt with a "#".
+		Your updates under /work will have your host uid in host's POV.

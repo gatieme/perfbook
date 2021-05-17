@@ -1,36 +1,36 @@
 % debugging/debugging.tex
+% mainfile: ../perfbook.tex
+% SPDX-License-Identifier: CC-BY-SA-3.0
 
-\QuickQuizChapter{chp:Validation}{Validation}
+\QuickQuizChapter{chp:Validation}{Validation}{qqzdebugging}
 %
 \Epigraph{If it is not tested, it doesn't work.}{\emph{Unknown}}
 
 I have had a few parallel programs work the first time, but that is only
-because I have written a large number parallel programs over the past two
+because I have written a large number parallel programs over the past three
 decades.
 And I have had far more parallel programs that fooled me into thinking
 that they were working correctly the first time than actually were working
 the first time.
 
-I have therefore had great need of validation for my parallel programs.
-The basic trick behind parallel validation, as with other software
-validation, is to realize that the computer knows what is wrong.
+I thus need to validate my parallel programs.
+The basic trick behind validation, is to realize that the computer knows
+what is wrong.
 It is therefore your job to force it to tell you.
 This chapter can therefore be thought of as a short course in
-machine interrogation.\footnote{
-	But you can leave the thumbscrews and waterboards at home.
-	This chapter covers much more sophisticated and effective
-	methods, especially given that most computer
-	systems neither feel pain nor fear drowning.
-	At least as far as we know.}
+machine interrogation.
+But you can leave the good-cop/bad-cop routine at home.
+This chapter covers much more sophisticated and effective methods,
+especially given that most computers couldn't tell a good cop from a
+bad cop, at least as far as we know.
 
 A longer course may be found in many recent books on validation, as
-well as at least one rather old but quite worthwhile
+well as at least one older but valuable
 one~\cite{GlenfordJMyers1979}.
 Validation is an extremely important topic that cuts across all forms
-of software, and is therefore worth intensive study in its own right.
-However, this book is primarily about concurrency, so this chapter
-will necessarily do little more than scratch the surface of this
-critically important topic.
+of software, and is worth intensive study in its own right.
+However, this book is primarily about concurrency, so this chapter will do
+little more than scratch the surface of this critically important topic.
 
 Section~\ref{sec:debugging:Introduction}
 introduces the philosophy of debugging.
@@ -53,11 +53,16 @@ Finally,
 Section~\ref{sec:debugging:Summary}
 gives a fanciful summary and a short list of statistical traps to avoid.
 
-But never forget that the two best debugging tools are a solid design
-and a good night's sleep!
+But never forget that the three best debugging tools are a thorough
+understanding of the requirements, a solid design, and a good night's
+sleep!
 
 \section{Introduction}
 \label{sec:debugging:Introduction}
+%
+\epigraph{If debugging is the process of removing software bugs, then
+	  programming must be the process of putting them in.}
+	 {\emph{Edsger W.~Dijkstra}}
 
 Section~\ref{sec:debugging:Where Do Bugs Come From?}
 discusses the sources of bugs, and
@@ -81,13 +86,13 @@ Because of this history, the following three characteristics of computers
 often come as a shock to human intuition:
 
 \begin{enumerate}
-\item	Computers typically lack common sense, despite decades of research
-	sacrificed at the altar of artificial intelligence.
-\item	Computers generally fail to understand user intent, or more
-	formally, computers generally lack a theory of mind.
-\item	Computers usually cannot do anything useful with a fragmentary plan,
-	instead requiring that each and every detail of each and every
-	possible scenario be spelled out in full.
+\item	Computers lack common sense, despite huge sacrifices at the
+	altar of artificial intelligence.
+\item	Computers fail to understand user intent, or more formally,
+	computers generally lack a theory of mind.
+\item	Computers cannot do anything useful with a fragmentary plan,
+	instead requiring that every detail of all possible scenarios
+	be spelled out in full.
 \end{enumerate}
 
 The first two points should be uncontroversial, as they are illustrated
@@ -96,8 +101,8 @@ Microsoft Bob.
 By attempting to relate to users as people, these two products raised
 common-sense and theory-of-mind expectations that they proved incapable
 of meeting.
-Perhaps the set of software assistants that have recently started appearing
-on smartphones will fare better.
+Perhaps the set of software assistants are now available on smartphones
+will fare better, but as of 2021 reviews are mixed.
 That said, the developers working on them by all accounts still develop
 the old way: The assistants might well benefit end users, but not so
 much their own developers.
@@ -106,17 +111,19 @@ This human love of fragmentary plans deserves more explanation,
 especially given that it is a classic two-edged sword.
 This love of fragmentary plans is apparently due to the assumption that
 the person carrying out the plan will have (1)~common sense and (2)~a good
-understanding of the intent behind the plan.
+understanding of the intent and requirements driving the plan.
 This latter assumption is especially likely to hold in the common case
 where the person doing the planning and the person carrying out the plan
 are one and the same:  In this case, the plan will be revised almost
-subconsciously as obstacles arise.
-Therefore, the love of fragmentary plans has served human beings well,
-in part because it is better to take random actions that have a high
-probability of locating food than to starve to death while attempting
-to plan the unplannable.
-However, the past usefulness of fragmentary plans in everyday life is
-no guarantee of their future usefulness in stored-program computers.
+subconsciously as obstacles arise, especially when that person has the
+a good understanding of the problem at hand.
+In fact, the love of fragmentary plans has served human beings well,
+in part because it is better to take random actions that have a some
+chance of locating food than to starve to death while attempting to plan
+the unplannable.
+However, the usefulness of fragmentary plans in the
+everyday life of which we are all experts is no guarantee of their future
+usefulness in stored-program computers.
 
 Furthermore, the need to follow fragmentary plans has had important effects
 on the human psyche, due to the fact
@@ -127,26 +134,24 @@ requires almost insane levels of optimism---a level of optimism that actually
 is present in most human beings.
 These insane levels of optimism extend to self-assessments of programming
 ability, as evidenced by the effectiveness of (and the controversy over)
-interviewing techniques involving coding trivial
-programs~\cite{RegBraithwaite2007FizzBuzz}.
+code-interviewing techniques~\cite{RegBraithwaite2007FizzBuzz}.
 In fact, the clinical term for a human being with less-than-insane
 levels of optimism is ``clinically depressed.'' Such people usually have
 extreme difficulty functioning in their daily lives, underscoring the
 perhaps counter-intuitive importance of insane levels of optimism to a
 normal, healthy life.
-If you are not insanely optimistic, you are less likely to start a difficult
-but worthwhile project.\footnote{
+Furtheremore, if you are not insanely optimistic, you are less likely
+to start a difficult but worthwhile project.\footnote{
 	There are some famous exceptions to this rule of thumb.
-	One set of exceptions is people who take on difficult or risky
-	projects in order to make at least a temporary escape
-	from their depression.
-	Another set is people who have nothing to lose: the project is
-	literally a matter of life or death.}
+	Some people take on difficult or risky projects in order to at
+	least a temporarily escape from their depression.
+	Others have nothing to lose: the project is literally a matter
+	of life or death.}
 
-\QuickQuiz{}
-	When in computing is the willingness to follow a fragmentary
-	plan critically important?
-\QuickQuizAnswer{
+\QuickQuiz{
+	When in computing is it necessary to follow a
+	fragmentary plan?
+}\QuickQuizAnswer{
 	There are any number of situations, but perhaps the most important
 	situation is when no one has ever created anything resembling
 	the program to be developed.
@@ -160,7 +165,7 @@ but worthwhile project.\footnote{
 
 	And perhaps this is one reason why evolution has favored insanely
 	optimistic human beings who are happy to follow fragmentary plans!
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 An important special case is the project that, while valuable, is not
 valuable enough to justify the time required to implement it.
@@ -169,19 +174,27 @@ unwillingness of the decision-makers to invest enough to actually
 implement the project.
 A natural reaction is for the developers to produce an unrealistically
 optimistic estimate in order to be permitted to start the project.
-If the organization (be it open source or proprietary) is strong enough,
-it might survive the resulting schedule slips and budget overruns,
-so that the project might see the light of day.
+If the organization is strong enough and its decision-makers ineffective
+enough, the project might succeed despite the resulting schedule slips
+and budget overruns.
 However, if the organization is not strong enough and if the decision-makers
 fail to cancel the project as soon as it becomes clear that the estimates
 are garbage, then the project might well kill the organization.
 This might result in another organization picking up the project and
-either completing it, cancelling it, or being killed by it.
+either completing it, canceling it, or being killed by it.
 A given project might well succeed only after killing several
 organizations.
 One can only hope that the organization that eventually makes a success
-of a serial-organization-killer project manages maintains a suitable
-level of humility, lest it be killed by the next project.
+of a serial-organization-killer project maintains a suitable
+level of humility, lest it be killed by its next such project.
+
+\QuickQuiz{
+	Who cares about the organization?
+	After all, it is the project that is important!
+}\QuickQuizAnswer{
+	Yes, projects are important, but if you like being paid for your
+	work, you need organizations as well as projects.
+}\QuickQuizEnd
 
 Important though insane levels of optimism might be, they are a key source
 of bugs (and perhaps failure of organizations).
@@ -193,8 +206,8 @@ The next section examines this conundrum.
 \subsection{Required Mindset}
 \label{sec:debugging:Required Mindset}
 
-When carrying out any validation effort, you should keep the following
-definitions in mind:
+When carrying out any validation effort, keep the following
+definitions firmly in mind:
 
 \begin{enumerate}
 \item	The only bug-free programs are trivial programs.
@@ -208,29 +221,29 @@ Therefore, any validation effort undertaken on a non-trivial program
 that fails to find any bugs is itself a failure.
 A good validation is therefore an exercise in destruction.
 This means that if you are the type of person who enjoys breaking things,
-validation is just the right type of job for you.
+validation is just job for you.
 
-\QuickQuiz{}
+\begin{SaveVerbatim}{VerbDebuggingQQZ}
+        real    0m0.132s
+        user    0m0.040s
+        sys     0m0.008s
+\end{SaveVerbatim}
+
+\QuickQuiz{
 	Suppose that you are writing a script that processes the
 	output of the \co{time} command, which looks as follows:
 
-	\vspace{5pt}
-	\begin{minipage}[t]{\columnwidth}
-	\tt
-	\scriptsize
-	\begin{verbatim}
-		real    0m0.132s
-		user    0m0.040s
-		sys     0m0.008s
-	\end{verbatim}
-	\end{minipage}
-	\vspace{5pt}
+	\begin{center}
+	\fbox{\BUseVerbatim[boxwidth=2in,baseline=c]{VerbDebuggingQQZ}}
+	\end{center}
 
 	The script is required to check its input for errors, and to
 	give appropriate diagnostics if fed erroneous \co{time} output.
 	What test inputs should you provide to this program to test it
 	for use with \co{time} output generated by single-threaded programs?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
+	Can you say ``Yes'' to all the following questions?
+
 	\begin{enumerate}
 	\item	Do you have a test case in which all the time is
 		consumed in user mode by a CPU-bound program?
@@ -245,7 +258,7 @@ validation is just the right type of job for you.
 	\item	Do you have a set of tests cases in which one of the
 		times uses more than one second?
 	\item	Do you have a set of tests cases in which one of the
-		times uses more than ten second?
+		times uses more than ten seconds?
 	\item	Do you have a set of test cases in which one of the
 		times has non-zero minutes?  (For example, ``15m36.342s''.)
 	\item	Do you have a set of test cases in which one of the
@@ -291,18 +304,16 @@ validation is just the right type of job for you.
 	However, this is no panacea: You will find that it is all too
 	easy to find your thinking limited by what the program can handle,
 	thus failing to generate truly destructive inputs.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 But perhaps you are a super-programmer whose code is always perfect
 the first time every time.
 If so, congratulations!
 Feel free to skip this chapter, but
 I do hope that you will forgive my skepticism.
-You see, I have met far more people who claimed to be able
-to write perfect code the first time than I have
-people who were actually capable of carrying out this feat, which
-is not too surprising given the previous discussion of optimism
-and over-confidence.
+You see, I have too many people who claimed to be able to write perfect
+code the first time, which is not too surprising given the previous
+discussion of optimism and over-confidence.
 And even if you really are a super-programmer, you just might
 find yourself debugging lesser mortals' work.
 
@@ -314,32 +325,56 @@ in there somewhere!).
 It helps if you enjoy breaking things.
 If you don't, or if your joy in breaking things is limited to breaking
 \emph{other} people's things, find someone who does love breaking your
-code and get them to help you test it.
+code and have them help you break it.
 
 Another helpful frame of mind is to hate it when other people find bugs in
 your code.
-This hatred can help motivate you to torture your code beyond reason
-in order to increase the probability that you find the bugs rather than
-someone else.
+This hatred can help motivate you to torture your code beyond all reason
+in order to increase the probability that you will be the one to find
+the bugs.
+Just make sure to suspend this hatred long enough to sincerely thank
+anyone who does find a bug in your code!
+After all, by so doing, they saved you the trouble of tracking it down,
+and possibly at great personal expense dredging through your code.
+
+Yet another helpful frame of mind is studied skepticism.
+You see, believing that you understand the code means you can learn
+absolutely nothing about it.
+Ah, but you know that you completely understand the code because you
+wrote or reviewed it?
+Sorry, but the presence of bugs suggests that your understanding is at
+least partially fallacious.
+One cure is to write down what you know to be true and double-check this
+knowledge, as discussed in
+\crefrange{sec:debugging:Tracing}{sec:debugging:Code Review}.
+Objective reality \emph{always} overrides whatever you
+might think you know.
 
 One final frame of mind is to consider the possibility that someone's
 life depends on your code being correct.
-This can also motivate you to torture your code into revealing the
-whereabouts of its bugs.
+One way of looking at this is that consistently making good things happen
+requires a lot of focus on a lot of bad things that might happen, with
+an eye towards preventing or otherwise handling those bad things.\footnote{
+	For more on this philosophy, see the chapter entitled
+	``The Power of Negative Thinking''
+	from Chris Hadfield's excellent book entitled
+	``An Astronaut's Guide to Life on Earth.''}
+The prospect of these bad things might also motivate you to torture your
+code into revealing the whereabouts of its bugs.
 
 This wide variety of frames of mind opens the door to
 the possibility of multiple people with different frames of
 mind contributing to the project, with varying levels of optimism.
 This can work well, if properly organized.
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{2in}{!}{\includegraphics{cartoons/TortureTux}}
 \caption{Validation and the Geneva Convention}
 \ContributedBy{Figure}{fig:debugging:Validation and the Geneva Convention}{Melissa Broussard}
 \end{figure}
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{2in}{!}{\includegraphics{cartoons/TortureLaptop}}
 \caption{Rationalizing Validation}
@@ -349,14 +384,14 @@ This can work well, if properly organized.
 Some people might see vigorous validation as a form of torture, as
 depicted in
 Figure~\ref{fig:debugging:Validation and the Geneva Convention}.\footnote{
-	More cynical people might question whether these people are instead
-	merely afraid that validation will find bugs that they will then
-	be expected to fix.}
+	The cynics among us might question whether these people are
+	afraid that validation will find bugs that they will then be
+	required to fix.}
 Such people might do well to remind themselves that, Tux cartoons aside,
 they are really torturing an inanimate object, as shown in
 Figure~\ref{fig:debugging:Rationalizing Validation}.
-In addition, rest assured that those who fail to torture their code are
-doomed to be tortured by it.
+Rest assured that those who fail to torture their code are doomed to be
+tortured by it!
 
 However, this leaves open the question of exactly when during the project
 lifetime validation should start, a topic taken up by the next section.
@@ -364,7 +399,7 @@ lifetime validation should start, a topic taken up by the next section.
 \subsection{When Should Validation Start?}
 \label{sec:debugging:When Should Validation Start?}
 
-Validation should start at the same time that the project starts.
+Validation should start exactly when the project starts.
 
 To see this, consider that tracking down a bug is much harder in a large
 program than in a small one.
@@ -373,8 +408,8 @@ you should test small units of code.
 Although you won't find all the bugs this way, you will find a substantial
 fraction, and it will be much easier to find and fix the ones you do find.
 Testing at this level can also alert you to larger flaws in your overall
-design, minimizing the time you waste writing code that is quite literally
-broken by design.
+design, minimizing the time you waste writing code that is broken
+by design.
 
 But why wait until you have code before validating your design?\footnote{
 	The old saying ``First we must code, then we have incentive to
@@ -393,11 +428,11 @@ The answer to this question will almost always be ``yes''.
 One good way to avoid flawed requirements is to get to know your users.
 To really serve them well, you will have to live among them.
 
-\QuickQuiz{}
+\QuickQuiz{
 	You are asking me to do all this validation BS before
 	I even start coding???
 	That sounds like a great way to never get started!!!
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	If it is your project, for example, a hobby, do what you like.
 	Any time you waste will be your own, and you have no one else
 	to answer to for it.
@@ -412,20 +447,106 @@ To really serve them well, you will have to live among them.
 	On the other hand, if you are being paid to produce a system that
 	is broadly similar to existing systems, you owe it to your users,
 	your employer, and your future self to validate early and often.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
-First-of-a-kind projects
-require different approaches to validation, for example,
-rapid prototyping.
-Here, the main goal of the first few prototypes is to learn how
-the project should be implemented, not so much to create a correct
-implementation on the first try.
-However, it is important to keep in mind that you should not omit
-validation, but rather take a radically different approach to it.
+First-of-a-kind projects often use different methodologies such as
+rapid prototyping or agile.
+Here, the main goal of early prototypes are not to create correct
+implementations, but rather to learn the project's requirements.
+But this does not mean that you omit validation; it instead means that
+you approach it differently.
 
-Now that we have established that you should start validation when you
-start the project, the following sections cover a number of validation
-techniques and methods that have proven their worth.
+One such approach takes a Darwinian view, with the validation suite
+eliminating code that is not fit to solve the problem at hand.
+From this viewpoint, a vigorous validation suite is essential to the
+fitness of your software.
+However, taking this approach to its logical conclusion is quite humbling,
+as it requires us developers to admit that our carefully crafted changes
+to the codebase are, from a Darwinian standpoint, random mutations.
+On the other hand, this conclusion is supported by long experience
+indicating that seven percent of fixes introduce at least one
+bug~\cite{RexBlack2012SQA}.
+
+How vigorous should your validation suite be?
+If the bugs it finds aren't threatening the very foundations of your
+software design, then it is not yet vigorous enough.
+After all, your design is just as prone to bugs as is your code, and
+the earlier you find and fix the bugs in your design, the less time
+you will waste coding those design bugs.
+
+\QuickQuiz{
+	Are you actually suggesting that it is possible to test
+	correctness into software???
+	Everyone knows that is impossible!!!
+}\QuickQuizAnswer{
+	Please note that the text used the word ``validation'' rather
+	than the word ``testing''.
+	The word ``validation'' includes formal methods as well as
+	testing, for more on which please see
+	Chapter~\ref{chp:Formal Verification}.
+
+	But as long as we are bringing up things that everyone should
+	know, let's remind ourselves that Darwinian evolution is
+	not about correctness, but rather about survival.
+	As is software.
+	My goal as a developer is not that my software be attractive
+	from a theoretical viewpoint, but rather that it survive
+	whatever its users throw at it.
+
+	Although the notion of correctness does have its uses, its
+	fundamental limitation is that the specification against which
+	correctness is judged will also have bugs.
+	This means nothing more nor less than that traditional correctness
+	proofs prove that the code in question contains the intended
+	set of bugs!
+
+	Alternative definitions of correctness instead focus on the
+	lack of problematic properties, for example, proving that the
+	software has no use-after-free bugs, no \co{NULL} pointer
+	dereferences, no array-out-of-bounds references, and so on.
+	Make no mistake, finding and eliminating such classes of bugs
+	can be highly useful.
+	But the fact remains that the lack of certain classes of bugs
+	does nothing to demonstrate fitness for any specific purpose.
+
+	Therefore, usage-driven validation remains critically important.
+
+	Besides, it is also impossible to verify correctness into your
+	software, especially given the problematic need to verify both
+	the verifier and the specification.
+}\QuickQuizEnd
+
+It is worth reiterating that this advice applies to first-of-a-kind
+projects.
+If you are instead doing a project in a well-explored area, you would
+be quite foolish to refuse to learn from previous experience.
+But you should still start validating right at the beginning of the
+project, but hopefully guided by others' hard-won knowledge of both
+requirements and pitfalls.
+
+An equally important question is ``When should validation stop?''
+The best answer is ``Some time after the last change.''
+Every change has the potential to create a bug, and thus every
+change must be validated.
+Furthermore, validation development should continue through the
+full lifetime of the project.
+After all, the Darwinian perspective above implies that bugs are
+adapting to your validation suite.
+Therefore, unless you continually improve your validation suite, your
+project will naturally accumulate hordes of validation-suite-immune bugs.
+
+But life is a tradeoff, and every bit of time invested in validation
+suites as a bit of time that cannot be invested in directly improving
+the project itself.
+These sorts of choices are never easy, and it can be just as damaging
+to overinvest in validation as it can be to underinvest.
+But this is just one more indication that life is not easy.
+
+Now that we have established that you should start validation when
+you start the project (if not earlier!), and that both validation and
+validation development should continue throughout the lifetime of that
+project, the following sections cover a number of validation techniques
+and methods that have proven their worth.
 
 \subsection{The Open Source Way}
 \label{sec:debugging:The Open Source Way}
@@ -435,9 +556,9 @@ includes a regimen of intense code review and testing.
 
 I can personally attest to the effectiveness of the open-source community's
 intense code review.
-One of the first patches I prepared for the Linux kernel involved
-a distributed filesystem where a user on one node writes to a given
-file at a location that a user on another node has mapped into memory.
+One of my first patches to the Linux kernel involved a distributed
+filesystem where one node might write to a given file that another node
+has mapped into memory.
 In this case, it is necessary to invalidate the affected pages from
 the mapping in order to allow the filesystem to maintain coherence
 during the write operation.
@@ -471,7 +592,7 @@ I was lucky:  There was someone out there who wanted the functionality
 provided by my patch, who had long experience with distributed filesystems,
 and who looked at my patch almost immediately.
 If no one had looked at my patch, there would have been no review, and
-therefore no finding of bugs.
+therefore none of those bugs would have been located.
 If the people looking at my patch had lacked experience with distributed
 filesystems, it is unlikely that they would have found all the bugs.
 Had they waited months or even years to look, I likely would have forgotten
@@ -506,13 +627,16 @@ be prepared to develop and run your own test suite.
 Test development is an underappreciated and very valuable skill, so be
 sure to take full advantage of any existing test suites available to
 you.
-Important as test development is, we will leave further discussion of it
+Important as test development is, we must leave further discussion of it
 to books dedicated to that topic.
 The following sections therefore discuss locating bugs in your code given that
 you already have a good test suite.
 
 \section{Tracing}
 \label{sec:debugging:Tracing}
+%
+\epigraph{The machine knows what is wrong.
+	  Make it tell you.}{\emph{Unknown}}
 
 When all else fails, add a \co{printk()}!
 Or a \co{printf()}, if you are working with user-mode C-language applications.
@@ -531,12 +655,11 @@ These brute-force testing tools are all valuable, especially now
 that typical systems have more than 64K of memory and CPUs running
 faster than 4\,MHz.
 Much has been
-written about these tools, so this chapter will add little more.
+written about these tools, so this chapter will add only a little more.
 
-However, these tools all have a serious shortcoming when the job at hand
-is to convince a the fastpath of a high-performance parallel algorithm
-to tell you what is going wrong, namely, they often have excessive
-overheads.
+However, these tools all have a serious shortcoming when you need a
+fastpath to tell you what is going wrong, namely, these tools often have
+excessive overheads.
 There are special tracing technologies for this purpose, which typically
 leverage data ownership techniques
 (see Chapter~\ref{chp:Data Ownership})
@@ -549,6 +672,9 @@ Even so, enabling tracing can sometimes change timing enough to
 hide bugs, resulting in \emph{heisenbugs}, which are discussed in
 Section~\ref{sec:debugging:Probability and Heisenbugs}
 and especially Section~\ref{sec:debugging:Hunting Heisenbugs}.
+In the kernel, BPF can do data reduction in the kernel, reducing
+the overhead of transmitting the needed information from the kernel
+to userspace~\cite{BrendanGregg2019BPFperftools}.
 In userspace code, there is a huge number of tools that can help you.
 One good starting point is Brendan Gregg's blog.\footnote{
 	\url{http://www.brendangregg.com/blog/}}
@@ -558,35 +684,32 @@ For example, although the machine really does know all,
 what it knows is almost always way more than your head can hold.
 For this reason, high-quality test suites normally come with sophisticated
 scripts to analyze the voluminous output.
-But beware---scripts won't necessarily notice surprising things.
+But beware---scripts will only notice what you tell them to.
 My rcutorture scripts are a case in point: Early versions of those
 scripts were quite satisfied with a test run in which RCU grace periods
 stalled indefinitely.
 This of course resulted in the scripts being modified to detect RCU
 grace-period stalls, but this does not change the fact that the scripts
-will only detects problems that I think to make them detect.
+will only detect problems that I make them detect.
 But note well that unless you have a solid design, you won't know what
 your script should check for!
 
 Another problem with tracing and especially with \co{printk()} calls
-is that their overhead is often too much for production use.
-In some such cases, assertions can be helpful.
+is that their overhead can rule out production use.
+In such cases, assertions can be helpful.
 
 \section{Assertions}
 \label{sec:debugging:Assertions}
+%
+\epigraph{No man really becomes a fool until he stops asking questions.}
+	 {\emph{Charles P. Steinmetz}}
 
 Assertions are usually implemented in the following manner:
 
-\vspace{5pt}
-\begin{minipage}[t]{\columnwidth}
-\tt
-\scriptsize
-\begin{verbatim}
-  1 if (something_bad_is_happening())
-  2   complain();
-\end{verbatim}
-\end{minipage}
-\vspace{5pt}
+\begin{VerbatimN}
+if (something_bad_is_happening())
+	complain();
+\end{VerbatimN}
 
 This pattern is often encapsulated into C-preprocessor macros or
 language intrinsics, for example, in the Linux kernel, this might
@@ -596,38 +719,49 @@ the resulting output might obscure reports of other problems,
 in which case
 \co{WARN_ON_ONCE(something_bad_is_happening())} might be more appropriate.
 
-\QuickQuiz{}
+\QuickQuiz{
 	How can you implement \co{WARN_ON_ONCE()}?
-\QuickQuizAnswer{
-	If you don't mind having a \co{WARN_ON_ONCE()} that
-	will sometimes warn twice or three times, simply maintain
-	a static variable that is initialized to zero.
-	If the condition triggers, check the static variable, and
+}\QuickQuizAnswer{
+	If you don't mind \co{WARN_ON_ONCE()} sometimes warning more
+	than once, simply maintain a static variable that is initialized
+	to zero.
+	If the condition triggers, check the variable, and
 	if it is non-zero, return.
 	Otherwise, set it to one, print the message, and return.
 
 	If you really need the message to never appear more than once,
-	perhaps because it is huge, you can use an atomic exchange
-	operation in place of ``set it to one'' above.
+	you can use an atomic exchange operation in place of ``set it
+	to one'' above.
 	Print the message only if the atomic exchange operation returns
 	zero.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
-In parallel code, one especially bad something that might happen is that
+In parallel code, one bad something that might happen is that
 a function expecting to be called under a particular lock might be called
 without that lock being held.
 Such functions sometimes have header comments stating something like
 ``The caller must hold \co{foo_lock} when calling this function'', but
 such a comment does no good unless someone actually reads it.
-An executable statement like \co{lock_is_held(&foo_lock)} carries far
-more weight.
-
+An executable statement carries far more weight.
 The Linux kernel's lockdep
 facility~\cite{JonathanCorbet2006lockdep,StevenRostedt2011locdepCryptic}
-takes this a step farther, reporting potential deadlocks as well as
-allowing functions to verify that the proper locks are held.
-Of course, this additional functionality incurs significant overhead,
-so that lockdep is not necessarily appropriate for production use.
+therefore provides a \co{lockdep_assert_held()} function that checks
+whether the specified lock is held.
+Of course, lockdep incurs significant overhead, and thus might not be
+helpful in production.
+
+An especially bad parallel-code something is unexpected concurrent
+access to data.
+The Kernel Concurrency Sanitizer (KCSAN)~\cite{JonathanCorbet2019KCSAN}
+uses existing markings such as \co{READ_ONCE()} and \co{WRITE_ONCE()}
+to determine which concurrent accesses deserve warning messages.
+KCSAN has a significant false-positive rate, especially from the
+viewpoint of developers thinking in terms of C as assembly language
+with additional syntax.
+KCSAN therefore provides a \co{data_race()} construct to forgive
+known-benign \IXpl{data race}, and also the \co{ASSERT_EXCLUSIVE_ACCESS()}
+and \co{ASSERT_EXCLUSIVE_WRITER()} assertions to explicitly check for data
+races~\cite{MarcoElver2020FearDataRaceDetector1,MarcoElver2020FearDataRaceDetector2}.
 
 So what can be done in cases where checking is necessary, but where the
 overhead of runtime checking cannot be tolerated?
@@ -635,25 +769,27 @@ One approach is static analysis, which is discussed in the next section.
 
 \section{Static Analysis}
 \label{sec:debugging:Static Analysis}
+%
+\epigraph{A lot of automation isn't a replacement of
+	  humans but of mind-numbing behavior.}
+	 {\emph{Summarized from Stewart Butterfield}}
 
-Static analysis is a validation technique were one program takes a second
+Static analysis is a validation technique where one program takes a second
 program as input, reporting errors and vulnerabilities located in this
 second program.
-Interestingly enough, almost all programs are subjected to static analysis
+Interestingly enough, almost all programs are statically analyzed
 by their compilers or interpreters.
-These tools are of course far from perfect, but their ability to locate
+These tools are far from perfect, but their ability to locate
 errors has improved immensely over the past few decades, in part because
 they now have much more than 64K bytes of memory in which to carry out their
-analysis.
+analyses.
 
 The original UNIX \co{lint} tool~\cite{StephenJohnson1977lint} was
 quite useful, though much of its functionality has since been incorporated
 into C compilers.
-There are nevertheless lint-like tools under development and in use to
-this day.
-
+There are nevertheless lint-like tools in use to this day.
 The sparse static analyzer~\cite{JonathanCorbet2004sparse}
-looks for higher-level issues in the Linux kernel, including:
+finds higher-level issues in the Linux kernel, including:
 
 \begin{enumerate}
 \item	Misuse of pointers to user-space structures.
@@ -668,12 +804,18 @@ Although it is likely that compilers will continue to increase their
 static-analysis capabilities, the sparse static analyzer demonstrates
 the benefits of static analysis outside of the compiler, particularly
 for finding application-specific bugs.
+\Crefrange{sec:formal:SAT Solvers}{sec:formal:Stateless Model Checkers}
+describe more sophisticated forms of static analysis.
 
 \section{Code Review}
 \label{sec:debugging:Code Review}
+%
+\epigraph{If a man speaks of my virtues, he steals from me;
+	  if he speaks of my vices, then he is my teacher.}
+	 {\emph{Chinese proverb}}
 
-Various code-review activities are special cases of static analysis, but
-with human beings doing the analysis.
+Code review is a special case of static analysis with human beings doing
+the analysis.
 This section covers inspection, walkthroughs, and self-inspection.
 
 \subsection{Inspection}
@@ -684,26 +826,58 @@ with formally defined roles: moderator, developer, and one or two other
 participants.
 The developer reads through the code, explaining what it is doing and
 why it works.
-The one or two other participants ask questions and raise issues, while
-the moderator's job is to resolve any conflicts and to take notes.
+The one or two other participants ask questions and raise issues,
+hopefully exposing the author's invalid assumptions, while the moderator's
+job is to resolve any resulting conflicts and take notes.
 This process can be extremely effective at locating bugs, particularly
 if all of the participants are familiar with the code at hand.
 
 However, this face-to-face formal procedure does not necessarily
-work well in the global Linux kernel community, although it might work
-well via an IRC session.
+work well in the global Linux kernel community.
 Instead, individuals review code separately and provide comments via
-email or IRC.
+email or IRC\@.
 The note-taking is provided by email archives or IRC logs, and moderators
-volunteer their services as appropriate.
-Give or take the occasional flamewar, this process also works reasonably
-well, particularly if all of the participants are familiar with the
-code at hand.\footnote{
-	That said, one advantage of the Linux kernel community approach
-	over traditional formal inspections is the greater probability of
-	contributions from people \emph{not} familiar with the code,
-	who therefore might not be blinded by the invalid assumptions
-	harbored by those familiar with the code.}
+volunteer their services as required by the occasional flamewar.
+This process also works reasonably well, particularly if all of the
+participants are familiar with the code at hand.
+In fact, one advantage of the Linux kernel community approach over
+traditional formal inspections is the greater probability of contributions
+from people \emph{not} familiar with the code, who might not be blinded
+by the author's invalid assumptions, and who might also test the code.
+
+\QuickQuiz{
+	Just what invalid assumptions are you accusing Linux kernel
+	hackers of harboring???
+}\QuickQuizAnswer{
+	Those wishing a complete answer to this question are encouraged
+	to search the Linux kernel \emph{git} repository for commits
+	containing the string ``Fixes:''.
+	There were many thousands of them just in the year 2020, including
+	fixes for the following invalid assumptions:
+
+	\begin{enumerate}
+	\item	Testing for a non-zero denominator will prevent
+		divide-by-zero errors.
+		(Hint: Suppose that the test uses 64-bit arithmetic
+		but that the division uses 32-bit arithmetic.)
+	\item	Userspace can be trusted to zero out versioned data
+		structures used to communicate with the kernel.
+		(Hint: Sometimes userspace has no idea how large the
+		data structure is.)
+	\item	Outdated TCP duplicate selective acknowledgement (D-SACK)
+		packets can be completely ignored.
+		(Hint: These packets might also contain other information.)
+	\item	All CPUs are little-endian.
+	\item	Once a data structure is no longer needed, all of its
+		memory may be immediately freed.
+	\item	All devices can be initialized while in standby mode.
+	\item	Developers can be trusted to consistently do correct
+		hexidecimal arithmetic.
+	\end{enumerate}
+
+	Those who look at these commits in greater detail will conclude
+	that invalid assumptions are the rule, not the exception.
+}\QuickQuizEnd
 
 It is quite likely that the Linux kernel community's review process
 is ripe for improvement:
@@ -713,15 +887,19 @@ is ripe for improvement:
 	expertise required to carry out an effective review.
 \item	Even though all review discussions are archived, they are
 	often ``lost'' in the sense that insights are forgotten and
-	people often fail to look up the discussions.
+	people fail to look up the discussions.
 	This can result in re-insertion of the same old bugs.
 \item	It is sometimes difficult to resolve flamewars when they do
 	break out, especially when the combatants have disjoint
 	goals, experience, and vocabulary.
 \end{enumerate}
 
-When reviewing, therefore, it is worthwhile to review relevant documentation
+Perhaps some of the needed improvements will be provided by
+continuous-integration-style testing, but there are many bugs more
+easily found by review than by testing.
+When reviewing, therefore, it is worthwhile to look at relevant documentation
 in commit logs, bug reports, and LWN articles.
+This documentation can help you quickly build up the required expertise.
 
 \subsection{Walkthroughs}
 \label{sec:debugging:Walkthroughs}
@@ -747,7 +925,7 @@ One could imagine a particularly sadistic procedure as follows:
 	to predict the outcome of the statement and explain why
 	this outcome is correct.
 \item	If the outcome differs from that predicted by the developer,
-	this is taken as evidence of a potential bug.
+	this is taken as a potential bug.
 \item	In parallel code, a ``concurrency shark'' asks what code
 	might execute concurrently with this code, and why such
 	concurrency is harmless.
@@ -778,33 +956,39 @@ especially for complex parallel code:
 \begin{enumerate}
 \item	Write design document with requirements, diagrams for data structures,
 	and rationale for design choices.
-\item	Consult with experts, update the design document as needed.
-\item	Write the code in pen on paper, correct errors as you go.
+\item	Consult with experts, updating the design document as needed.
+\item	Write the code in pen on paper, correcting errors as you go.
 	Resist the temptation to refer to pre-existing nearly identical code
 	sequences, instead, copy them.
+\item	At each step, articulate and question your assumptions,
+	inserting assertions or constructing tests to check them.
 \item	If there were errors, copy the code in pen on fresh paper, correcting
 	errors as you go.
 	Repeat until the last two copies are identical.
 \item	Produce proofs of correctness for any non-obvious code.
-\item	Where possible, test the code fragments from the bottom up.
-\item	When all the code is integrated, do full-up functional and
-	stress testing.
+\item	Use a source-code control system.
+	Commit early; commit often.
+\item	Test the code fragments from the bottom up.
+\item	When all the code is integrated (but preferably before),
+	do full-up functional and stress testing.
 \item	Once the code passes all tests, write code-level documentation,
 	perhaps as an extension to the design document discussed above.
+	Fix both the code and the test code as needed.
 \end{enumerate}
 
-When I faithfully follow this procedure for new RCU code, there are
-normally only a few bugs left at the end.
+When I follow this procedure for new RCU code, there are normally only
+a few bugs left at the end.
 With a few prominent (and embarrassing)
 exceptions~\cite{PaulEMcKenney2011RCU3.0trainwreck},
 I usually manage to locate these bugs before others do.
 That said, this is getting more difficult over time as the number and
 variety of Linux-kernel users increases.
 
-\QuickQuiz{}
+\QuickQuizSeries{%
+\QuickQuizB{
 	Why would anyone bother copying existing code in pen on paper???
 	Doesn't that just increase the probability of transcription errors?
-\QuickQuizAnswer{
+}\QuickQuizAnswerB{
 	If you are worried about transcription errors, please allow me
 	to be the first to introduce you to a really cool tool named
 	\co{diff}.
@@ -822,13 +1006,13 @@ variety of Linux-kernel users increases.
 		there is some better way to get the job done.
 	\end{enumerate}
 	So, yes, copy the code!
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndB
+%
+\QuickQuizM{
 	This procedure is ridiculously over-engineered!
 	How can you expect to get a reasonable amount of software
 	written doing it this way???
-\QuickQuizAnswer{
+}\QuickQuizAnswerM{
 	Indeed, repeatedly copying code by hand is laborious and slow.
 	However, when combined with heavy-duty stress testing and
 	proofs of correctness, this approach is also extremely effective
@@ -837,12 +1021,12 @@ variety of Linux-kernel users increases.
 	The Linux-kernel RCU implementation is a case in point.
 
 	On the other hand, if you are writing a simple single-threaded
-	shell script to manipulate some data, then you would be
-	best-served by a different methodology.
-	For example, you might enter each command one at a time
-	into an interactive shell with a test data set to make
-	sure that it did what you wanted, then copy-and-paste the
-	successful commands into your script.
+	shell script, then you would be best-served by a different
+	methodology.
+	For example, enter each command one at a time into an interactive
+	shell with a test data set to make sure that it does what you
+	want, then copy-and-paste the successful commands into your
+	script.
 	Finally, test the script as a whole.
 
 	If you have a friend or colleague who is willing to help out,
@@ -853,7 +1037,18 @@ variety of Linux-kernel users increases.
 
 	In short, different types of software need different development
 	methodologies.
-} \QuickQuizEnd
+}\QuickQuizEndM
+%
+\QuickQuizE{
+	What do you do if, after all the pen-on-paper copying, you find
+	a bug while typing in the resulting code?
+}\QuickQuizAnswerE{
+	The answer, as is often the case, is ``it depends''.
+	If the bug is a simple typo, fix that typo and continue typing.
+	However, if the bug indicates a design flaw, go back to pen
+	and paper.
+}\QuickQuizEndE
+}
 
 The above procedure works well for new code, but what if you need to
 inspect code that you have already written?
@@ -875,8 +1070,8 @@ circumstances:
 
 This works because describing the code in detail is an excellent way to spot
 bugs~\cite{GlenfordJMyers1979}.
-Although this second procedure is also a good way to get your head around
-someone else's code, in many cases, the first step suffices.
+This second procedure is also a good way to get your head around
+someone else's code, although the first step often suffices.
 
 Although review and inspection by others is probably more efficient and
 effective, the above procedures can be quite helpful in cases where
@@ -891,8 +1086,7 @@ Here are some time-tested ways of accomplishing this:
 	available parallel library functions.
 \item	Write sequential plug-ins for a parallel framework,
 	such as map-reduce, BOINC, or a web-application server.
-\item	Do such a good job of parallel design that the problem
-	is fully partitioned, then just implement sequential
+\item	Fully partition your problems, then implement sequential
 	program(s) that run in parallel without communication.
 \item	Stick to one of the application areas (such as linear algebra)
 	where tools can automatically decompose and parallelize
@@ -916,17 +1110,50 @@ that the original developers did not consider.
 The next section describes how to handle the probabilistic bugs that
 occur all too commonly when validating parallel software.
 
+\QuickQuiz{
+	Wait!
+	Why on earth would an abstract piece of software fail only
+	sometimes???
+}\QuickQuizAnswer{
+	Because complexity and concurrency can produce results that
+	are indistinguishable from
+	randomness~\cite{PeterOkech2009InherentRandomness}.
+	For example, a bug in Linux-kernel RCU required the following
+	to hold before that bug would manifest:
+	\begin{enumerate}
+	\item	The kernel was built for HPC or real-time use, so that
+		a given CPU's RCU work could be offloaded to some other
+		CPU\@.
+	\item	An offloaded CPU went offline just after generating a
+		large quantity of RCU work.
+	\item	A special \co{rcu_barrier()} API was invoked just at
+		this time.
+	\item	The RCU work from the newly offlined CPU was still being
+		processed after \co{rcu_barrier()} returned.
+	\item	One of these remaining RCU work items was related to
+		the code invoking the \co{rcu_barrier()}.
+	\end{enumerate}
+	Making this bug manifest therefore required considerable luck
+	or great testing skill.
+	But the testing skill could be effective only if the bug was
+	known, which of course it was not.
+	Therefore, the manifesting of this bug was very well modeled
+	as a probabilistic process.
+}\QuickQuizEnd
+
 \section{Probability and Heisenbugs}
 \label{sec:debugging:Probability and Heisenbugs}
+%
+\epigraph{With both heisenbugs and impressionist art, the closer you
+	  get, the less you see.}
+	 {\emph{Unknown}}
 
-So your parallel program fails.
-Sometimes.
-
+So your parallel program fails sometimes.
 But you used techniques from the earlier sections to locate
 the problem and now have a fix in place!
 Congratulations!!!
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{cartoons/r-2014-Passed-the-stress-test}}
 \caption{Passed on Merits?  Or Dumb Luck?}
@@ -945,31 +1172,36 @@ Figure~\ref{fig:cpu:Passed-the-stress-test}?
 Unfortunately, the honest answer is that an infinite amount of testing
 is required to attain absolute certainty.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Suppose that you had a very large number of systems at your
 	disposal.
 	For example, at current cloud prices, you can purchase a
-	huge amount of CPU time at a reasonably low cost.
+	huge amount of CPU time at low cost.
 	Why not use this approach to get close enough to certainty
 	for all practical purposes?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	This approach might well be a valuable addition to your
 	validation arsenal.
-	But it does have a few limitations:
+	But it does have limitations that rule out ``for all practical
+	purposes'':
 	\begin{enumerate}
 	\item	Some bugs have extremely low probabilities of occurrence,
 		but nevertheless need to be fixed.
 		For example, suppose that the Linux kernel's RCU
 		implementation had a bug that is triggered only once
-		per century of machine time on average.
-		A century of CPU time is hugely expensive even on
+		per million years of machine time on average.
+		A million years of CPU time is hugely expensive even on
 		the cheapest cloud platforms, but we could expect
-		this bug to result in more than 2,000 failures per day
-		on the more than 100 million Linux instances in the
-		world as of 2011.
+		this bug to result in more than 50 failures per day
+		on the more than 20~billion Linux instances in the
+		world as of 2017.
 	\item	The bug might well have zero probability of occurrence
-		on your test setup, which means that you won't see it
-		no matter how much machine time you burn testing it.
+		on your particular cloud-computing test setup, which
+		means that you won't see it no matter how much machine
+		time you burn testing it.
+		For but one example, there are RCU bugs that appear
+		only in preemptible kernels, and also other RCU bugs
+		that appear only in non-preemptible kernels.
 	\end{enumerate}
 	Of course, if your code is small enough, formal validation
 	may be helpful, as discussed in
@@ -979,25 +1211,24 @@ is required to attain absolute certainty.
 	requirements, misunderstanding of the software or hardware
 	primitives you use, or errors that you did not think to construct
 	a proof for.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 But suppose that we are willing to give up absolute certainty in favor
 of high probability.
 Then we can bring powerful statistical tools to bear on this problem.
 However, this section will focus on simple statistical tools.
-These tools are extremely helpful, but please note
-that reading this section not a substitute
-for taking a good set of statistics classes.\footnote{
+These tools are extremely helpful, but please note that reading this
+section is not a substitute for statistics classes.\footnote{
 	Which I most highly recommend.
 	The few statistics courses I have taken have provided value
-	way out of proportion to the time I spent studying for them.}
+	far beyond that of the time I spent on them.}
 
 For our start with simple statistical tools, we need to decide whether
 we are doing discrete or continuous testing.
 Discrete testing features well-defined individual test runs.
 For example, a boot-up test of a Linux kernel patch is an example
-of a discrete test.
-You boot the kernel, and it either comes up or it does not.
+of a discrete test:
+The kernel either comes up or it does not.
 Although you might spend an hour boot-testing your kernel, the number of
 times you attempted to boot the kernel and the number of times the
 boot-up succeeded would often be of more interest than the length
@@ -1005,46 +1236,42 @@ of time you spent testing.
 Functional tests tend to be discrete.
 
 On the other hand, if my patch involved RCU, I would probably run
-rcutorture, which is a kernel module that, strangely enough, tests RCU.
+rcutorture, which is a kernel module that, strangely enough, tests RCU\@.
 Unlike booting the kernel, where the appearance of a login prompt
 signals the successful end of a discrete test, rcutorture will happily
 continue torturing RCU until either the kernel crashes or until you
 tell it to stop.
-The duration of the rcutorture test is therefore (usually) of more
+The duration of the rcutorture test is usually of more
 interest than the number of times you started and stopped it.
 Therefore, rcutorture is an example of a continuous test, a category
 that includes many stress tests.
 
-The statistics governing discrete and continuous tests differ somewhat.
-However, the statistics for discrete tests is simpler and more
-familiar than that for continuous tests, and furthermore the
-statistics for discrete tests can often be pressed into service
-(with some loss of accuracy) for continuous tests.
+Statistics for discrete tests are simpler and more familiar than those
+for continuous tests, and furthermore the statistics for discrete tests
+can often be pressed into service for continuous tests, though with some
+loss of accuracy.
 We therefore start with discrete tests.
 
 \subsection{Statistics for Discrete Testing}
 \label{sec:debugging:Statistics for Discrete Testing}
 
-Suppose that the bug had a 10\% chance of occurring in
-a given run and that we do five runs.
-How do we compute that probability of at least one run failing?
-One way is as follows:
+Suppose a bug has a 10\,\% chance of occurring in a given run and that
+we do five runs.
+How do we compute the probability of at least one run failing?
+Here is one way:
 
 \begin{enumerate}
-\item	Compute the probability of a given run succeeding, which is 90\%.
+\item	Compute the probability of a given run succeeding, which is 90\,\%.
 \item	Compute the probability of all five runs succeeding, which
-	is 0.9 raised to the fifth power, or about 59\%.
-\item	There are only two possibilities: either all five runs succeed,
-	or at least one fails.
-	Therefore, the probability of at least one failure is
-	59\% taken away from 100\%, or 41\%.
+	is 0.9 raised to the fifth power, or about 59\,\%.
+\item	Because either all five runs succeed, or at least one fails,
+	subtract the 59\,\% expected success rate from 100\,\%, yielding
+	a 41\,\% expected failure rate.
 \end{enumerate}
 
-However, many people find it easier to work with a formula than a series
-of steps, although if you prefer the above series of steps, have at it!
-For those who like formulas, call the probability of a single failure $f$.
+For those preferring formulas, call the probability of a single failure $f$.
 The probability of a single success is then $1-f$ and the probability
-that all of $n$ tests will succeed is then:
+that all of $n$ tests will succeed is $S_n$:
 
 \begin{equation}
 	S_n = \left(1-f\right)^n
@@ -1057,38 +1284,37 @@ The probability of failure is $1-S_n$, or:
 \label{eq:debugging:Binomial Failure Rate}
 \end{equation}
 
-\QuickQuiz{}
+\QuickQuiz{
 	Say what???
-	When I plug the earlier example of five tests each with a
-	10\% failure rate into the formula, I get 59,050\% and that
-	just doesn't make sense!!!
-\QuickQuizAnswer{
+	When I plug the earlier five-test 10\,\%-failure-rate example into
+	the formula, I get 59,050\,\% and that just doesn't make sense!!!
+}\QuickQuizAnswer{
 	You are right, that makes no sense at all.
 
 	Remember that a probability is a number between zero and one,
 	so that you need to divide a percentage by 100 to get a
 	probability.
-	So 10\% is a probability of 0.1, which gets a probability
-	of 0.4095, which rounds to 41\%, which quite sensibly
+	So 10\,\% is a probability of 0.1, which gets a probability
+	of 0.4095, which rounds to 41\,\%, which quite sensibly
 	matches the earlier result.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
-So suppose that a given test has been failing 10\% of the time.
-How many times do you have to run the test to be 99\% sure that
-your supposed fix has actually improved matters?
+So suppose that a given test has been failing 10\,\% of the time.
+How many times do you have to run the test to be 99\,\% sure that
+your supposed fix actually helped?
 
 Another way to ask this question is ``How many times would we need
-to run the test to cause the probability of failure to rise above 99\%?''
+to run the test to cause the probability of failure to rise above 99\,\%?''
 After all, if we were to run the test enough times that the probability
-of seeing at least one failure becomes 99\%, if there are no failures,
-there is only 1\% probability of this being due to dumb luck.
+of seeing at least one failure becomes 99\,\%, if there are no failures,
+there is only 1\,\% probability of this ``success'' being due to dumb luck.
 And if we plug $f=0.1$ into
 Equation~\ref{eq:debugging:Binomial Failure Rate} and vary $n$,
-we find that 43 runs gives us a 98.92\% chance of at least one test failing
-given the original 10\% per-test failure rate,
-while 44 runs gives us a 99.03\% chance of at least one test failing.
+we find that 43 runs gives us a 98.92\,\% chance of at least one test failing
+given the original 10\,\% per-test failure rate,
+while 44 runs gives us a 99.03\,\% chance of at least one test failing.
 So if we run the test on our fix 44 times and see no failures, there
-is a 99\% probability that our fix was actually a real improvement.
+is a 99\,\% probability that our fix really did help.
 
 But repeatedly plugging numbers into
 Equation~\ref{eq:debugging:Binomial Failure Rate}
@@ -1110,22 +1336,22 @@ Finally the number of tests required is given by:
 Plugging $f=0.1$ and $F_n=0.99$ into
 Equation~\ref{eq:debugging:Binomial Number of Tests Required}
 gives 43.7, meaning that we need 44 consecutive successful test
-runs to be 99\% certain that our fix was a real improvement.
+runs to be 99\,\% certain that our fix was a real improvement.
 This matches the number obtained by the previous method, which
 is reassuring.
 
-\QuickQuiz{}
+\QuickQuiz{
 	In Equation~\ref{eq:debugging:Binomial Number of Tests Required},
-	are the logarithms base-10, base-2, or base-$e$?
-\QuickQuizAnswer{
+	are the logarithms base-10, base-2, or base-$\euler$?
+}\QuickQuizAnswer{
 	It does not matter.
 	You will get the same answer no matter what base of logarithms
 	you use because the result is a pure ratio of logarithms.
 	The only constraint is that you use the same base for both
 	the numerator and the denominator.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{2.5in}{!}{\includegraphics{CodeSamples/debugging/BinomialNRuns}}
 \caption{Number of Tests Required for 99 Percent Confidence Given Failure Rate}
@@ -1135,9 +1361,9 @@ is reassuring.
 Figure~\ref{fig:debugging:Number of Tests Required for 99 Percent Confidence Given Failure Rate}
 shows a plot of this function.
 Not surprisingly, the less frequently each test run fails, the more
-test runs are required to be 99\% confident that the bug has been
+test runs are required to be 99\,\% confident that the bug has been
 fixed.
-If the bug caused the test to fail only 1\% of the time, then a
+If the bug caused the test to fail only 1\,\% of the time, then a
 mind-boggling 458 test runs are required.
 As the failure probability decreases, the number of test runs required
 increases, going to infinity as the failure probability goes to zero.
@@ -1145,18 +1371,18 @@ increases, going to infinity as the failure probability goes to zero.
 The moral of this story is that when you have found a rarely occurring
 bug, your testing job will be much easier if you can come up with
 a carefully targeted test with a much higher failure rate.
-For example, if your targeted test raised the failure rate from 1\%
-to 30\%, then the number of runs required for 99\% confidence
-would drop from 458 test runs to a mere thirteen test runs.
+For example, if your targeted test raised the failure rate from 1\,\%
+to 30\,\%, then the number of runs required for 99\,\% confidence
+would drop from 458 to a more tractable 13.
 
-But these thirteen test runs would only give you 99\% confidence that
+But these thirteen test runs would only give you 99\,\% confidence that
 your fix had produced ``some improvement''.
-Suppose you instead want to have 99\% confidence that your fix reduced
+Suppose you instead want to have 99\,\% confidence that your fix reduced
 the failure rate by an order of magnitude.
 How many failure-free test runs are required?
 
-An order of magnitude improvement from a 30\% failure rate would be
-a 3\% failure rate.
+An order of magnitude improvement from a 30\,\% failure rate would be
+a 3\,\% failure rate.
 Plugging these numbers into
 Equation~\ref{eq:debugging:Binomial Number of Tests Required} yields:
 
@@ -1167,32 +1393,32 @@ Equation~\ref{eq:debugging:Binomial Number of Tests Required} yields:
 So our order of magnitude improvement requires roughly an order of
 magnitude more testing.
 Certainty is impossible, and high probabilities are quite expensive.
-Clearly making tests run more quickly and making failures more probable
-are essential skills in the development of highly reliable software.
+This is why making tests run more quickly and making failures more
+probable are essential skills in the development of highly reliable
+software.
 These skills will be covered in
 Section~\ref{sec:debugging:Hunting Heisenbugs}.
 
-\subsection{Abusing Statistics for Discrete Testing}
-\label{sec:debugging:Abusing Statistics for Discrete Testing}
+\subsection{Statistics Abuse for Discrete Testing}
+\label{sec:debugging:Statistics Abuse for Discrete Testing}
 
 But suppose that you have a continuous test that fails about three
 times every ten hours, and that you fix the bug that you believe was
 causing the failure.
-How long do you have to run this test without failure to be 99\% certain
+How long do you have to run this test without failure to be 99\,\% certain
 that you reduced the probability of failure?
 
 Without doing excessive violence to statistics, we could simply
-redefine a one-hour run to be a discrete test that has a 30\%
+redefine a one-hour run to be a discrete test that has a 30\,\%
 probability of failure.
 Then the results of in the previous section tell us that if the test
-runs for 13 hours without failure, there is a 99\% probability that
+runs for 13 hours without failure, there is a 99\,\% probability that
 our fix actually improved the program's reliability.
 
-A dogmatic statistician might not approve of this approach, but the
-sad fact is that the errors introduced by this sort of abuse of
-statistical methodology are usually quite small compared to the
-errors inherent in your measurements of your program's failure rates.
-Nevertheless, the next section describes a slightly less dodgy approach.
+A dogmatic statistician might not approve of this approach, but the sad
+fact is that the errors introduced by this sort of statistical abuse are
+usually quite small compared to the errors in your failure-rate estimates.
+Nevertheless, the next section takes a more rigorous approach.
 
 \subsection{Statistics for Continuous Testing}
 \label{sec:debuggingStatistics for Continuous Testing}
@@ -1201,7 +1427,7 @@ The fundamental formula for failure probabilities is the Poisson
 distribution:
 
 \begin{equation}
-	F_m = \frac{\lambda^m}{m!} e^{-\lambda}
+	F_m = \frac{\lambda^m}{m!} \euler^{-\lambda}
 \label{eq:debugging:Poisson Probability}
 \end{equation}
 
@@ -1210,67 +1436,66 @@ $\lambda$ is the expected failure rate per unit time.
 A rigorous derivation may be found in any advanced probability
 textbook, for example, Feller's classic ``An Introduction to Probability
 Theory and Its Applications''~\cite{Feller58}, while a more
-intuitive approach may be found in the first edition of
-this book~\cite{McKenney2014ParallelProgramming-e1}.
+intuitive derivation may be found in the first edition of
+this book~\cite[Equations 11.8--11.26]{McKenney2014ParallelProgramming-e1}.
 
 Let's try reworking the example from
-Section~\ref{sec:debugging:Abusing Statistics for Discrete Testing}
+Section~\ref{sec:debugging:Statistics Abuse for Discrete Testing}
 using the Poisson distribution.
-Recall that this example involved a test with a 30\% failure rate per
+Recall that this example involved a test with a 30\,\% failure rate per
 hour, and that the question was how long the test would need to run
 error-free
-on a alleged fix to be 99\% certain that the fix actually reduced the
+on a alleged fix to be 99\,\% certain that the fix actually reduced the
 failure rate.
-In this case, $\lambda$ is zero, so that
+In this case, $m$ is zero, so that
 Equation~\ref{eq:debugging:Poisson Probability} reduces to:
 
 \begin{equation}
-	F_0 =  e^{-\lambda}
+	F_0 =  \euler^{-\lambda}
 \end{equation}
 
 Solving this requires setting $F_0$
 to 0.01 and solving for $\lambda$, resulting in:
 
 \begin{equation}
-	\lambda = - \log 0.01 = 4.6
+	\lambda = - \ln 0.01 = 4.6
 \end{equation}
 
 Because we get $0.3$ failures per hour, the number of hours required
-is $4.6/0.3 = 14.3$, which is within 10\% of the 13 hours
+is $4.6/0.3 = 14.3$, which is within 10\,\% of the 13 hours
 calculated using the method in
-Section~\ref{sec:debugging:Abusing Statistics for Discrete Testing}.
-Given that you normally won't know your failure rate to within 10\%,
-this indicates that the method in
-Section~\ref{sec:debugging:Abusing Statistics for Discrete Testing}
-is a good and sufficient substitute for the Poisson distribution in
-a great many situations.
+Section~\ref{sec:debugging:Statistics Abuse for Discrete Testing}.
+Given that you normally won't know your failure rate to anywhere near
+10\,\%, the simpler method described in
+Section~\ref{sec:debugging:Statistics Abuse for Discrete Testing}
+is almost always good and sufficient.
 
 More generally, if we have $n$ failures per unit time, and we want to
-be P\% certain that a fix reduced the failure rate, we can use the
+be $P$\,\% certain that a fix reduced the failure rate, we can use the
 following formula:
 
 \begin{equation}
-	T = - \frac{1}{n} \log \frac{100 - P}{100}
+	T = - \frac{1}{n} \ln \frac{100 - P}{100}
 \label{eq:debugging:Error-Free Test Duration}
 \end{equation}
 
-\QuickQuiz{}
+\QuickQuiz{
 	Suppose that a bug causes a test failure three times per hour
 	on average.
-	How long must the test run error-free to provide 99.9\%
+	How long must the test run error-free to provide 99.9\,\%
 	confidence that the fix significantly reduced the probability
 	of failure?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	We set $n$ to $3$ and $P$ to $99.9$ in
 	Equation~\ref{eq:debugging:Error-Free Test Duration}, resulting in:
 
 	\begin{equation}
-		T = - \frac{1}{3} \log \frac{100 - 99.9}{100} = 2.3
+		T = - \frac{1}{3} \ln \frac{100 - 99.9}{100} = 2.3
 	\end{equation}
 
-	If the test runs without failure for 2.3 hours, we can be 99.9\%
+	If the test runs without failure for 2.3 hours, we can be 99.9\,\%
 	certain that the fix reduced the probability of failure.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 As before, the less frequently the bug occurs and the greater the
 required level of confidence, the longer the required error-free test run.
@@ -1287,18 +1512,18 @@ Equation~\ref{eq:debugging:Poisson Probability} as follows:
 
 \begin{equation}
 	F_0 + F_1 + \dots + F_{m - 1} + F_m =
-		\sum_{i=0}^m \frac{\lambda^i}{i!} e^{-\lambda}
+		\sum_{i=0}^m \frac{\lambda^i}{i!} \euler^{-\lambda}
 \end{equation}
 
 This is the Poisson cumulative distribution function, which can be
 written more compactly as:
 
 \begin{equation}
-	F_{i \le m} = \sum_{i=0}^m \frac{\lambda^i}{i!} e^{-\lambda}
+	F_{i \le m} = \sum_{i=0}^m \frac{\lambda^i}{i!} \euler^{-\lambda}
 \label{eq:debugging:Possion CDF}
 \end{equation}
 
-Here $m$ is the number of errors in the long test run
+Here $m$ is the actual number of errors in the long test run
 (in this case, two) and $\lambda$ is expected number of errors
 in the long test run (in this case, 24).
 Plugging $m=2$ and $\lambda=24$ into this expression gives the probability
@@ -1308,56 +1533,101 @@ that the fix actually had some relationship to the bug.\footnote{
 	Of course, this result in no way excuses you from finding and
 	fixing the bug(s) resulting in the remaining two failures!}
 
-\QuickQuiz{}
+\QuickQuizSeries{%
+\QuickQuizB{
 	Doing the summation of all the factorials and exponentials
 	is a real pain.
 	Isn't there an easier way?
-\QuickQuizAnswer{
+}\QuickQuizAnswerB{
 	One approach is to use the open-source symbolic manipulation
 	program named ``maxima''.
 	Once you have installed this program, which is a part of many
-	Debian-based Linux distributions, you can run it and give the
+	Linux distributions, you can run it and give the
 	\co{load(distrib);} command followed by any number of
-	\co{bfloat(cdf_poisson(m,l));} commands, where the \co{m}
-	is replaced by the desired value of $m$ and the \co{l}
-	is replaced by the desired value of $\lambda$.
+	\co{bfloat(cdf_poisson(m,l));} commands, where the \co{m} is
+	replaced by the desired value of $m$ (the actual number of failures in
+	actual test) and the \co{l} is replaced by the desired value of
+	$\lambda$ (the expected number of failures in the actual test).
 
 	In particular, the \co{bfloat(cdf_poisson(2,24));} command
 	results in \co{1.181617112359357b-8}, which matches the value
 	given by Equation~\ref{eq:debugging:Possion CDF}.
 
-	Alternatively, you can use the rough-and-ready method described in
-	Section~\ref{sec:debugging:Abusing Statistics for Discrete Testing}.
-} \QuickQuizEnd
+\begin{table}
+\renewcommand*{\arraystretch}{1.25}
+\rowcolors{3}{}{lightgray}
+\small
+\centering
+\begin{tabular}{rrrr}
+	\toprule
+		& \multicolumn{3}{c}{Improvement} \\
+		\cmidrule(l){2-4}
+	Certainty (\%)
+		& Any
+			& 10x
+				& 100x \\
+	\cmidrule{1-1} \cmidrule(l){2-4}
+	90.0	& 2.3	& 23.0	& 230.0  \\
+	95.0	& 3.0	& 30.0	& 300.0  \\
+	99.0	& 4.6	& 46.1	& 460.5  \\
+	99.9	& 6.9	& 69.1	& 690.7  \\
+	\bottomrule
+\end{tabular}
+\caption{Human-Friendly Poisson-Function Display}
+\label{tab:debugging:Human-Friendly Poisson-Function Display}
+\end{table}
 
-\QuickQuiz{}
+	Another approach is to recognize that in this real world,
+	it is not all that useful to compute (say) the duration of a test
+	having two or fewer errors that would give a 76.8\,\% confidence
+	of a 349.2x improvement in reliability.
+	Instead, human beings tend to focus on specific values, for
+	example, a 95\,\% confidence of a 10x improvement.
+	People also greatly prefer error-free test runs, and so should
+	you because doing so reduces your required test durations.
+	Therefore, it is quite possible that the values in
+	\cref{tab:debugging:Human-Friendly Poisson-Function Display}
+	will suffice.
+	Simply look up the desired confidence and degree of improvement,
+	and the resulting number will give you the required
+	error-free test duration in terms of the expected time for
+	a single error to appear.
+	So if your pre-fix testing suffered one failure per hour, and the
+	powers that be require a 95\,\% confidence of a 10x improvement,
+	you need a 30-hour error-free run.
+
+	Alternatively, you can use the rough-and-ready method described in
+	Section~\ref{sec:debugging:Statistics Abuse for Discrete Testing}.
+}\QuickQuizEndB
+%
+\QuickQuizE{
 	But wait!!!
 	Given that there has to be \emph{some} number of failures
-	(including the possibility of zero failures),
-	shouldn't the summation shown in
+	(including the possibility of zero failures), shouldn't
 	Equation~\ref{eq:debugging:Possion CDF}
 	approach the value $1$ as $m$ goes to infinity?
-\QuickQuizAnswer{
+}\QuickQuizAnswerE{
 	Indeed it should.
 	And it does.
 
-	To see this, note that $e^{-\lambda}$ does not depend on $i$,
+	To see this, note that $\euler^{-\lambda}$ does not depend on $i$,
 	which means that it can be pulled out of the summation as follows:
 
 	\begin{equation}
-		e^{-\lambda} \sum_{i=0}^\infty \frac{\lambda^i}{i!}
+		\euler^{-\lambda} \sum_{i=0}^\infty \frac{\lambda^i}{i!}
 	\end{equation}
 
 	The remaining summation is exactly the Taylor series for
-	$e^\lambda$, yielding:
+	$\euler^\lambda$, yielding:
 
 	\begin{equation}
-		e^{-\lambda} e^\lambda
+		\euler^{-\lambda} \euler^\lambda
 	\end{equation}
 
 	The two exponentials are reciprocals, and therefore cancel,
 	resulting in exactly $1$, as required.
-} \QuickQuizEnd
+}\QuickQuizEndE
+}
 
 The Poisson distribution is a powerful tool for analyzing test results,
 but the fact is that in this last example there were still two remaining
@@ -1374,42 +1644,43 @@ of a bug appearing, which
 is why extremely lightweight tracing and assertion mechanism are
 so critically important.
 
-The term ``heisenbug'' was inspired by the Heisenberg Uncertainty
-Principle from quantum physics, which states that it is impossible to
+The term ``heisenbug'' was inspired by the \pplsur{Weiner}{Heisenberg}
+\IX{Uncertainty Principle} from quantum physics, which states that
+it is impossible to
 exactly quantify a given particle's position and velocity at any given
 point in time~\cite{WeinerHeisenberg1927Uncertain}.
 Any attempt to more accurately measure that particle's position will
-result in increased uncertainty of its velocity.
-A roughly similar effect occurs for heisenbugs: attempts to track down
-the heisenbug causes it to radically change its symptoms or even disappear
+result in increased uncertainty of its velocity and vice versa.
+Similarly, attempts to track down
+the heisenbug causes its symptoms to radically change or even disappear
 completely.\footnote{
 	The term ``heisenbug'' is a misnomer, as most heisenbugs are
 	fully explained by the \emph{observer effect} from classical
 	physics.
-	Nevertheless, the name ``heisenbug'' has stuck.}
+	Nevertheless, the name has stuck.}
 
 If the field of physics inspired the name of this problem, it is only
-logical that the field of physics should inspire the solution.
+fair that the field of physics should inspire the solution.
 Fortunately, particle physics is up to the task:
 Why not create an anti-heisenbug to annihilate the heisenbug?
 Or, perhaps more accurately, to annihilate the heisen-ness of
 the heisenbug?
-
-This section describes a number of ways to do just that:
+Although producing an anti-heisenbug for a given heisenbug is more an
+art than a science, the following sections describe a number of ways to
+do just that:
 
 \begin{enumerate}
-\item	Add delay to race-prone regions.
-\item	Increase workload intensity.
-\item	Test suspicious subsystems in isolation.
-\item	Simulate unusual events.
-\item	Count near misses.
+\item	Add delay to race-prone regions (\cref{sec:debugging:Add Delay}).
+\item	Increase workload intensity
+	(\cref{sec:debugging:Increase Workload Intensity}).
+\item	Isolate suspicious subsystems
+	(\cref{sec:debugging:Isolate Suspicious Subsystems}).
+\item	Simulate unusual events (\cref{sec:debugging:Simulate Unusual Events}).
+\item	Count near misses (\cref{sec:debugging:Count Near Misses}).
 \end{enumerate}
 
-Although producing an anti-heisenbug for a given heisenbug is more an
-art than a science, the following sections give some tips on
-generating the corresponding species of anti-heisenbug.
-These are followed by a discussion section,
-Section~\ref{sec:debugging:Heisenbug Discussion}.
+These are followed by discussion in
+\cref{sec:debugging:Heisenbug Discussion}.
 
 \subsubsection{Add Delay}
 \label{sec:debugging:Add Delay}
@@ -1438,10 +1709,10 @@ the failure rate.
 By adding and removing the delays in an organized fashion (e.g., binary
 search), you might learn more about the workings of the race condition.
 
-\QuickQuiz{}
+\QuickQuiz{
 	How is this approach supposed to help if the corruption affected some
 	unrelated pointer, which then caused the corruption???
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Indeed, that can happen.
 	Many CPUs have hardware-debugging facilities that can help you
 	locate that unrelated pointer.
@@ -1458,25 +1729,34 @@ search), you might learn more about the workings of the race condition.
 
 	Nevertheless, this is a hard problem, which is why I used the
 	words ``a bit of a dark art''.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 Another important approach is to
 vary the software and hardware configuration and look for statistically
 significant differences in failure rate.
-You can then look more intensively at the code implicated by the
-software or hardware configuration changes that make the greatest
-difference in failure rate.
+For example, back in the 1990s, it was common practice to test on systems
+having CPUs running at different clock rates, which tended to make some
+types of race conditions more probable.
+One way of getting a similar effect today is to test on multi-socket
+systems, thus incurring the large delays described in
+\cref{sec:cpu:Overheads}.
+
+However you choose to add delays, you can then look more intensively at
+the code implicated by those delays that make the greatest difference
+in failure rate.
 It might be helpful to test that code in isolation, for example.
 
 One important aspect of software configuration is the history of
 changes, which is why \co{git bisect} is so useful.
 Bisection of the change history can provide very valuable clues as
-to the nature of the heisenbug.
+to the nature of the heisenbug, in this case presumably by locating
+a commit that shows a change in the software's response to the addition
+or removal of a given delay.
 
-\QuickQuiz{}
+\QuickQuiz{
 	But I did the bisection, and ended up with a huge commit.
 	What do I do now?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	A huge commit?
 	Shame on you!
 	This is but one reason why you are supposed to keep the commits small.
@@ -1485,9 +1765,9 @@ to the nature of the heisenbug.
 	pieces and bisect the pieces.
 	In my experience, the act of breaking up the commit is often
 	sufficient to make the bug painfully obvious.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
-However you locate the suspicious section of code, you can then introduce
+Once you locate the suspicious section of code, you can then introduce
 delays to attempt to increase the probability of failure.
 As we have seen, increasing the probability of failure makes it much
 easier to gain high confidence in the corresponding fix.
@@ -1504,7 +1784,7 @@ low stress on a given subsystem, so that a small change in timing
 can cause a heisenbug to disappear.
 One way to create an anti-heisenbug for this case is to increase
 the workload intensity, which has a good chance of increasing the
-probability of the bug appearing.
+bug's probability.
 If the probability is increased sufficiently, it may be possible to
 add lightweight diagnostics such as tracing without causing the
 bug to vanish.
@@ -1541,10 +1821,10 @@ If the program is structured such that it is difficult or impossible
 to apply much stress to a subsystem that is under suspicion,
 a useful anti-heisenbug is a stress test that tests that subsystem in
 isolation.
-The Linux kernel's rcutorture module takes exactly this approach with
-RCU: By applying more stress to RCU than is feasible in a production
-environment, the probability that any RCU bugs will be found during
-rcutorture testing rather than during production use is increased.\footnote{
+The Linux kernel's rcutorture module takes exactly this approach with RCU:
+Applying more stress to RCU than is feasible in a production environment
+increases the probability that RCU bugs will be found during testing
+rather than in production.\footnote{
 	Though sadly not increased to probability one.}
 
 In fact, when creating a parallel program, it is wise to stress-test
@@ -1569,27 +1849,27 @@ invoke \co{malloc()} and return the resulting pointer on the other.
 Inducing spurious failures is an excellent way to bake robustness into
 sequential programs as well as parallel programs.
 
-\QuickQuiz{}
-	Why don't existing conditional-locking primitives provide this
+\QuickQuiz{
+	Why don't conditional-locking primitives provide this
 	spurious-failure functionality?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	There are locking algorithms that depend on conditional-locking
 	primitives telling them the truth.
 	For example, if conditional-lock failure signals that
 	some other thread is already working on a given job,
 	spurious failure might cause that job to never get done,
 	possibly resulting in a hang.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 \subsubsection{Count Near Misses}
 \label{sec:debugging:Count Near Misses}
 
-Bugs are often an all-or-nothing thing, so that either the bug happens
-or it doesn't, with nothing in between.
+Bugs are often all-or-nothing things, so that a bug either happens
+or not, with nothing in between.
 However, it is sometimes possible to define a \emph{near miss} where
 the bug does not result in a failure, but has likely manifested.
 For example, suppose your code is making a robot walk.
-The robot's falling over constitutes a bug in your program, but
+The robot's falling down constitutes a bug in your program, but
 stumbling and recovering might constitute a near miss.
 If the robot falls over only once per hour, but stumbles every few
 minutes, you might be able to speed up your debugging progress by
@@ -1606,7 +1886,7 @@ delay might be counted as a near miss.\footnote{
 	in your environment.
 	If there isn't a \co{lock_held()} primitive, create one!}
 
-\begin{figure}[tbp]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{debugging/RCUnearMiss}}
 \caption{RCU Errors and Near Misses}
@@ -1616,7 +1896,7 @@ delay might be counted as a near miss.\footnote{
 For example, a low-probability bug in RCU priority boosting occurred
 roughly once every hundred hours of focused rcutorture testing.
 Because it would take almost 500 hours of failure-free testing to be
-99\% certain that the bug's probability had been significantly reduced,
+99\,\% certain that the bug's probability had been significantly reduced,
 the \co{git bisect} process
 to find the failure would be painfully slow---or would require an extremely
 large test farm.
@@ -1641,9 +1921,9 @@ This suggests using near misses as the error condition, however, this
 can be problematic because different CPUs can have different opinions
 as to exactly where a given
 grace period starts and ends, as indicated by the jagged lines.\footnote{
-	The jaggedness of these lines is seriously understated because
-	idle CPUs might well be completely unaware of the most recent
-	few hundred grace periods.}
+	In real life, these lines can be much more jagged because idle
+	CPUs can be completely unaware of a great many recent grace
+	periods.}
 Using the near misses as the error condition could therefore result
 in false positives, which need to be avoided in the automated
 \co{rcutorture} testing.
@@ -1678,7 +1958,7 @@ changes you make to add debugging code.
 The alert reader might have noticed that this section was fuzzy and
 qualitative, in stark contrast to the precise mathematics of
 Sections~\ref{sec:debugging:Statistics for Discrete Testing},
-~\ref{sec:debugging:Abusing Statistics for Discrete Testing},
+~\ref{sec:debugging:Statistics Abuse for Discrete Testing},
 and~\ref{sec:debuggingStatistics for Continuous Testing}.
 If you love precision and mathematics, you may be disappointed to
 learn that the situations to which this section applies are far
@@ -1737,6 +2017,9 @@ the next section discusses performance bugs.
 
 \section{Performance Estimation}
 \label{sec:debugging:Performance Estimation}
+%
+\epigraph{There are lies, damn lies, statistics, and benchmarks.}
+	 {\emph{Unknown}}
 
 Parallel programs usually have performance and scalability requirements,
 after all, if performance is not an issue, why not use a sequential
@@ -1749,11 +2032,12 @@ nanosecond is needed.
 Therefore, for parallel programs, insufficient performance is just as
 much a bug as is incorrectness.
 
-\QuickQuiz{}
+\QuickQuizSeries{%
+\QuickQuizB{
 	That is ridiculous!!!
 	After all, isn't getting the correct answer later than one would like
 	better than getting an incorrect answer???
-\QuickQuizAnswer{
+}\QuickQuizAnswerB{
 	This question fails to consider the option of choosing not to
 	compute the answer at all, and in doing so, also fails to consider
 	the costs of computing the answer.
@@ -1771,30 +2055,31 @@ much a bug as is incorrectness.
 
 	More severe examples may be found in the area of safety-critical
 	real-time computing.
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndB
+%
+\QuickQuizE{
 	But if you are going to put in all the hard work of parallelizing
 	an application, why not do it right?
 	Why settle for anything less than optimal performance and
 	linear scalability?
-\QuickQuizAnswer{
+}\QuickQuizAnswerE{
 	Although I do heartily salute your spirit and aspirations,
 	you are forgetting that there may be high costs due to delays
 	in the program's completion.
-	For an extreme example, suppose that a 40\% performance shortfall
+	For an extreme example, suppose that a 40\,\% performance shortfall
 	from a single-threaded application is causing one person to die
 	each day.
 	Suppose further that in a day you could hack together a
 	quick and dirty
-	parallel program that ran 50\% faster on an eight-CPU system
+	parallel program that ran 50\,\% faster on an eight-CPU system
 	than the sequential version, but that an optimal parallel
 	program would require four months of painstaking design, coding,
 	debugging, and tuning.
 
 	It is safe to say that more than 100 people would prefer the
 	quick and dirty version.
-} \QuickQuizEnd
+}\QuickQuizEndE
+}
 
 Validating a parallel program must therfore include validating its
 performance.
@@ -1806,11 +2091,8 @@ are discussed in the next section.
 \subsection{Benchmarking}
 \label{sec:debugging:Benchmarking}
 
-The old saying goes ``There are lies, damn lies, statistics,
-and benchmarks.''
-However, benchmarks are heavily used, so it is not helpful to
-be too dismissive of them.
-
+Frequent abuse aside, benchmarks are both useful and heavily used,
+so it is not helpful to be too dismissive of them.
 Benchmarks span the range from ad hoc test jigs to international
 standards, but regardless of their level of formality, benchmarks
 serve four major purposes:
@@ -1820,8 +2102,8 @@ serve four major purposes:
 \item	Focusing competitive energy on improving implementations in ways
 	that matter to users.
 \item	Serving as example uses of the implementations being benchmarked.
-\item	Serving as a marketing tool to highlight your software's
-	strong points against your competitors' offerings.
+\item	Serving as a marketing tool to highlight your software
+	against your competitors' offerings.
 \end{enumerate}
 
 Of course,  the only completely fair framework is the intended
@@ -1838,14 +2120,22 @@ Unfortunately, it is often impractical for the following reasons:
 	might not have the right to run the intended application.
 \item	The application might require more hardware
 	than you have access to.
-\item	The application might use data that you cannot legally
+\item	The application might use data that you cannot
 	access, for example, due to privacy regulations.
+\item	The application might take longer than is convenient to
+	reproduce a performance or scalability problem.\footnote{
+		Microbenchmarks can help, but
+		please see \cref{sec:debugging:Microbenchmarking}.}
 \end{enumerate}
 
-In these cases, creating a benchmark that approximates
+Creating a benchmark that approximates
 the application can help overcome these obstacles.
 A carefully constructed benchmark can help promote performance,
 scalability, energy efficiency, and much else besides.
+However, be careful to avoid investing too much into the benchmarking
+effort.
+It is after all important to invest at least a little into the
+application itself~\cite{Gray91}.
 
 \subsection{Profiling}
 \label{sec:debugging:Profiling}
@@ -1853,7 +2143,7 @@ scalability, energy efficiency, and much else besides.
 In many cases, a fairly small portion of your software is responsible
 for the majority of the performance and scalability shortfall.
 However, developers are notoriously unable to identify the actual
-bottlenecks by hand.
+bottlenecks by inspection.
 For example, in the case of a kernel buffer allocator, all attention focused
 on a search of a dense array which turned out to represent only
 a few percent of the allocator's execution time.
@@ -1933,6 +2223,9 @@ to creep in, including:
 	number of iterations, or it can often be eliminated entirely
 	by running a few warm-up iterations before starting the
 	measurement period.
+	Most systems have ways of detecting whether a given process
+	incurred a page fault, and you should make use of this to
+	reject runs whose performance has been thus impeded.
 \item	Some types of interference, for example, random memory errors,
 	are so rare that they can be dealt with by running a number
 	of sets of iterations of the test.
@@ -1947,16 +2240,27 @@ to creep in, including:
 	Assuming that these sources of interference occur randomly,
 	their effect can be minimized by reducing the number of
 	iterations.
+\item	Thermal throttling can understate scalability because increasing
+	CPU activity increases heat generation, and on systems without
+	adequate cooling (most of them!), this can result in the CPU
+	frequency decreasing as the number of CPUs increases.\footnote{
+		Systems with adequate cooling tend to look like gaming systems.}
+	Of course, if you are testing an application to evaluate its
+	expected behavior when run in production, such thermal throttling
+	is simply a fact of life.
+	Otherwise, if you are interested in theoretical scalability,
+	use a system with adequate cooling or reduce the CPU clock rate
+	to a level that the cooling system can handle.
 \end{enumerate}
 
 The first and fourth sources of interference provide conflicting advice,
 which is one sign that we are living in the real world.
 The remainder of this section looks at ways of resolving this conflict.
 
-\QuickQuiz{}
+\QuickQuiz{
 	But what about other sources of error, for example, due to
 	interactions between caches and memory layout?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Changes in memory layout can indeed result in unrealistic
 	decreases in execution time.
 	For example, suppose that a given microbenchmark almost
@@ -1965,7 +2269,19 @@ The remainder of this section looks at ways of resolving this conflict.
 	If this is a real concern, consider running your microbenchmark
 	using huge pages (or within the kernel or on bare metal) in
 	order to completely control the memory layout.
-} \QuickQuizEnd
+
+	But note that there are many different possible memory-layout
+	bottlenecks.
+	Benchmarks sensitive to memory bandwidth (such as those involving
+	matrix arithmetic) should spread the running threads across the
+	available cores and sockets to maximize memory parallelism.
+	They should also spread the data across NUMA nodes, memory
+	controllers, and DRAM chips to the extent possible.
+	In contrast, benchmarks sensitive to memory latency (including
+	most poorly scaling applications) should instead maximize
+	locality, filling each core and socket in turn before adding
+	another one.
+}\QuickQuizEnd
 
 The following sections discuss ways of dealing with these measurement
 errors, with
@@ -2002,9 +2318,12 @@ your test at a high real-time priority, for example, by using
 the POSIX \co{sched_setscheduler()} system call.
 However, note that if you do this, you are implicitly taking on
 responsibility for avoiding infinite loops, because otherwise
-your test will prevent part of the kernel from functioning.\footnote{
-	This is an example of the Spiderman Principle: ``With great
-	power comes great responsibility.''}
+your test can prevent part of the kernel from functioning.
+This is an example of the Spiderman Principle: ``With great
+power comes great responsibility.''
+And although the default real-time throttling settings often address
+such problems, they might do so by causing your real-time threads
+to miss their deadlines.
 
 These approaches can greatly reduce, and perhaps even eliminate,
 interference from processes, threads, and tasks.
@@ -2017,10 +2336,12 @@ Each numerical directory contains \co{smp_affinity} and
 \co{smp_affinity_list}.
 Given sufficient permissions, you can write a value to these files
 to restrict interrupts to the specified set of CPUs.
-For example, ``\co{sudo echo 3 > /proc/irq/23/smp_affinity}''
-would confine interrupts on vector~23 to CPUs~0 and~1.
-The same results may be obtained via
-``\co{sudo echo 0-1 > /proc/irq/23/smp_affinity_list}''.
+For example, either
+``\co{echo 3 > /proc/irq/23/smp_affinity}''
+or
+``\co{echo 0-1 > /proc/irq/23/smp_affinity_list}''
+would confine interrupts on vector~23 to CPUs~0 and~1,
+at least given sufficient privileges.
 You can use ``\co{cat /proc/interrupts}'' to obtain a list of the interrupt
 vectors on your system, how many are handled by each CPU, and what
 devices use each interrupt vector.
@@ -2031,10 +2352,11 @@ free of interference.
 Or mostly free of interference, anyway.
 It turns out that the scheduling-clock interrupt fires on each CPU
 that is running in user mode.\footnote{
-	Frederic Weisbecker is working on an adaptive-ticks project
-	that will allow the scheduling-clock interrupt to be shut
-	off on any CPU that has only one runnable task, but as of
-	early 2013, this is unfortunately still work in progress.}
+	Frederic Weisbecker leads up a \co{NO_HZ_FULL}
+	adaptive-ticks project
+	that allows scheduling-clock interrupts to be disabled
+	on CPUs that have only one runnable task.
+	As of 2021, this is largely complete.}
 In addition you must take care to ensure that the set of CPUs that you
 confine the interrupts to is capable of handling the load.
 
@@ -2048,11 +2370,11 @@ hypervisor-level operations to be restricted to authorized personnel.
 In addition, none of these techniques work against firmware-level
 interference.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Wouldn't the techniques suggested to isolate the code under
 	test also affect that code's performance, particularly if
 	it is running within a larger application?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Indeed it might, although in most microbenchmarking efforts
 	you would extract the code under test from the enclosing
 	application.
@@ -2060,18 +2382,20 @@ interference.
 	test within the application, you will very likely need to use
 	the techniques discussed in
 	Section~\ref{sec:debugging:Detecting Interference}.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
-If you find yourself in this painful situation, instead of preventing
-the interference, you might need to detect the interference as described
-in the next section.
+Of course, if it is in fact the interference that is producing the
+behavior of interest, you will instead need to promote interference,
+in which case being unable to prevent it is not a problem.
+But if you really do need interference-free measurements, then instead
+of preventing the interference, you might need to detect the interference
+as described in the next section.
 
 \subsection{Detecting Interference}
 \label{sec:debugging:Detecting Interference}
 
-If you cannot prevent interference, perhaps you can detect the
-interference after the fact and reject the test runs that were affected
-by that interference.
+If you cannot prevent interference, perhaps you can detect it
+and reject results from any affected test runs.
 Section~\ref{sec:debugging:Detecting Interference Via Measurement}
 describes methods of rejection involving additional measurements,
 while Section~\ref{sec:debugging:Detecting Interference Via Statistics}
@@ -2087,49 +2411,46 @@ describes statistics-based rejection.
 
 Many systems, including Linux, provide means for determining after the
 fact whether some forms of interference have occurred.
-For example, if your test encountered process-based interference,
-a context switch must have occurred during the test.
-On Linux-based systems, this context switch will be visible in
-\path{/proc/<PID>/sched} in the \co{nr_switches} field.
+For example, process-based interference results in context switches,
+which, on Linux-based systems, are visible in
+\path{/proc/<PID>/sched} via the \co{nr_switches} field.
 Similarly, interrupt-based interference can be detected via the
 \path{/proc/interrupts} file.
 
-\begin{figure}[tb]
-{ \scriptsize
-\begin{verbbox}
-  1 #include <sys/time.h>
-  2 #include <sys/resource.h>
-  3 
-  4 /* Return 0 if test results should be rejected. */
-  5 int runtest(void)
-  6 {
-  7   struct rusage ru1;
-  8   struct rusage ru2;
-  9 
- 10   if (getrusage(RUSAGE_SELF, &ru1) != 0) {
- 11     perror("getrusage");
- 12     abort();
- 13   }
- 14   /* run test here. */
- 15   if (getrusage(RUSAGE_SELF, &ru2 != 0) {
- 16     perror("getrusage");
- 17     abort();
- 18   }
- 19   return (ru1.ru_nvcsw == ru2.ru_nvcsw &&
- 20     ru1.runivcsw == ru2.runivcsw);
- 21 }
-\end{verbbox}
+\begin{listing}
+\begin{fcvlabel}[ln:debugging:Using getrusage() to Detect Context Switches]
+\begin{VerbatimL}
+#include <sys/time.h>
+#include <sys/resource.h>
+
+/* Return 0 if test results should be rejected. */
+int runtest(void)
+{
+	struct rusage ru1;
+	struct rusage ru2;
+
+	if (getrusage(RUSAGE_SELF, &ru1) != 0) {
+		perror("getrusage");
+		abort();
+	}
+	/* run test here. */
+	if (getrusage(RUSAGE_SELF, &ru2 != 0) {
+		perror("getrusage");
+		abort();
+	}
+	return (ru1.ru_nvcsw == ru2.ru_nvcsw &&
+	        ru1.runivcsw == ru2.runivcsw);
 }
-\centering
-\theverbbox
+\end{VerbatimL}
+\end{fcvlabel}
 \caption{Using \tco{getrusage()} to Detect Context Switches}
-\label{fig:count:Using getrusage() to Detect Context Switches}
-\end{figure}
+\label{lst:debugging:Using getrusage() to Detect Context Switches}
+\end{listing}
 
 Opening and reading files is not the way to low overhead, and it is
 possible to get the count of context switches for a given thread
 by using the \co{getrusage()} system call, as shown in
-Figure~\ref{fig:count:Using getrusage() to Detect Context Switches}.
+Listing~\ref{lst:debugging:Using getrusage() to Detect Context Switches}.
 This same system call can be used to detect minor page faults (\co{ru_minflt})
 and major page faults (\co{ru_majflt}).
 
@@ -2177,71 +2498,13 @@ the average inter-element distance for the portion of the list accepted
 thus far, then the next element is accepted and the process repeats.
 Otherwise, the remainder of the list is rejected.
 
-\begin{figure}[tb]
-{ \scriptsize
-\begin{verbbox}
-  1 divisor=3
-  2 relerr=0.01
-  3 trendbreak=10
-  4 while test $# -gt 0
-  5 do
-  6   case "$1" in
-  7   --divisor)
-  8     shift
-  9     divisor=$1
- 10     ;;
- 11   --relerr)
- 12     shift
- 13     relerr=$1
- 14     ;;
- 15   --trendbreak)
- 16     shift
- 17     trendbreak=$1
- 18     ;;
- 19   esac
- 20   shift
- 21 done
- 22 
- 23 awk -v divisor=$divisor -v relerr=$relerr \
- 24     -v trendbreak=$trendbreak '{
- 25   for (i = 2; i <= NF; i++)
- 26     d[i - 1] = $i;
- 27   asort(d);
- 28   i = int((NF + divisor - 1) / divisor);
- 29   delta = d[i] - d[1];
- 30   maxdelta = delta * divisor;
- 31   maxdelta1 = delta + d[i] * relerr;
- 32   if (maxdelta1 > maxdelta)
- 33     maxdelta = maxdelta1;
- 34   for (j = i + 1; j < NF; j++) {
- 35     if (j <= 2)
- 36       maxdiff = d[NF - 1] - d[1];
- 37     else
- 38       maxdiff = trendbreak * \
- 39       (d[j - 1] - d[1]) / (j - 2);
- 40     if (d[j] - d[1] > maxdelta && \
- 41         d[j] - d[j - 1] > maxdiff)
- 42       break;
- 43   }
- 44   n = sum = 0;
- 45   for (k = 1; k < j; k++) {
- 46     sum += d[k];
- 47     n++;
- 48   }
- 49   min = d[1];
- 50   max = d[j - 1];
- 51   avg = sum / n;
- 52   print $1, avg, min, max, n, NF - 1;
- 53 }'
-\end{verbbox}
-}
-\centering
-\theverbbox
+\begin{listing}
+\input{CodeSamples/debugging/datablows@whole.fcv}
 \caption{Statistical Elimination of Interference}
-\label{fig:count:Statistical Elimination of Interference}
-\end{figure}
+\label{lst:debugging:Statistical Elimination of Interference}
+\end{listing}
 
-Figure~\ref{fig:count:Statistical Elimination of Interference}
+Listing~\ref{lst:debugging:Statistical Elimination of Interference}
 shows a simple \co{sh}/\co{awk} script implementing this notion.
 Input consists of an x-value followed by an arbitrarily long list of y-values,
 and output consists of one line for each input line, with fields as follows:
@@ -2258,16 +2521,16 @@ and output consists of one line for each input line, with fields as follows:
 This script takes three optional arguments as follows:
 
 \begin{description}
-\item	[\tco{--divisor}\nf{:}] Number of segments to divide the list into,
-	for example, a divisor of four means that the first quarter
-	of the data elements will be assumed to be good.
+\item	[\lopt{divisor}\nf{:}] Number of segments to divide the list
+	into, for example, a divisor of four means that the first quarter of
+	the data elements will be assumed to be good.
 	This defaults to three.
-\item	[\tco{--relerr}\nf{:}] Relative measurement error.  The script assumes
-	that values that differ by less than this error are for all
-	intents and purposes equal.
-	This defaults to 0.01, which is equivalent to 1\%.
-\item	[\tco{--trendbreak}\nf{:}] Ratio of inter-element spacing constituting
-	a break in the trend of the data.
+\item	[\lopt{relerr}\nf{:}] Relative measurement error.
+	The script assumes that values that differ by less than this
+        error are for all intents and purposes equal.
+	This defaults to 0.01, which is equivalent to 1\,\%.
+\item	[\lopt{trendbreak}\nf{:}] Ratio of inter-element spacing
+	constituting a break in the trend of the data.
 	For example, if the average spacing in the data accepted so far
 	is 1.5, then if the trend-break ratio is 2.0, then if the next
 	data value differs from the last one by more than 3.0, this
@@ -2276,53 +2539,66 @@ This script takes three optional arguments as follows:
 	which case the ``break'' will be ignored.)
 \end{description}
 
-Lines~1-3 of
-Figure~\ref{fig:count:Statistical Elimination of Interference}
-set the default values for the parameters, and lines~4-21 parse
+\begin{fcvref}[ln:debugging:datablows:whole]
+\Clnrefrange{param:b}{param:e} of
+Listing~\ref{lst:debugging:Statistical Elimination of Interference}
+set the default values for the parameters, and
+\clnrefrange{parse:b}{parse:e} parse
 any command-line overriding of these parameters.
-The \co{awk} invocation on lines~23 and~24 sets the values of the
+\end{fcvref}
+\begin{fcvref}[ln:debugging:datablows:whole:awk]
+The \co{awk} invocation on line~\lnref{invoke} sets the values of the
 \co{divisor}, \co{relerr}, and \co{trendbreak} variables to their
 \co{sh} counterparts.
-In the usual \co{awk} manner, lines~25-52 are executed on each input
+In the usual \co{awk} manner,
+\clnrefrange{copy:b}{end} are executed on each input
 line.
-The loop spanning lines~24 and~26 copies the input y-values to the
-\co{d} array, which line~27 sorts into increasing order.
-Line~28 computes the number of y-values that are to be trusted absolutely
+The loop spanning lines~\lnref{copy:b} and~\lnref{copy:e} copies
+the input y-values to the
+\co{d} array, which line~\lnref{asort} sorts into increasing order.
+Line~\lnref{comp_i} computes the number of trustworthy y-values
 by applying \co{divisor} and rounding up.
 
-Lines~29-33 compute the \co{maxdelta} value used as a lower bound on
-the upper bound of y-values.
-To this end, lines~29 and~30 multiply the difference in values over
+\Clnrefrange{delta}{comp_max:e} compute the \co{maxdelta}
+lower bound on the upper bound of y-values.
+To this end, line~\lnref{maxdelta} multiplies the difference in values over
 the trusted region of data by the \co{divisor}, which projects the
 difference in values across the trusted region across the entire
 set of y-values.
 However, this value might well be much smaller than the relative error,
-so line~31 computes the absolute error (\co{d[i] * relerr}) and adds
+so line~\lnref{maxdelta1} computes the absolute error (\co{d[i] * relerr})
+and adds
 that to the difference \co{delta} across the trusted portion of the data.
-Lines~32 and~33 then compute the maximum of these two values.
+Lines~\lnref{comp_max:b} and~\lnref{comp_max:e} then compute the maximum of
+these two values.
 
-Each pass through the loop spanning lines~34-43 attempts to add another
+Each pass through the loop spanning \clnrefrange{add:b}{add:e}
+attempts to add another
 data value to the set of good data.
-Lines~35-39 compute the trend-break delta, with line~36 disabling this
+\Clnrefrange{chk_engh}{break} compute the trend-break delta,
+with line~\lnref{chk_engh} disabling this
 limit if we don't yet have enough values to compute a trend,
-and with lines~38 and~39 multiplying \co{trendbreak} by the average
+and with line~\lnref{mul_avr} multiplying \co{trendbreak} by the average
 difference between pairs of data values in the good set.
-If line~40 determines that the candidate data value would exceed the
+If line~\lnref{chk_max} determines that the candidate data value would exceed the
 lower bound on the upper bound (\co{maxdelta}) \emph{and}
-line~41 determines that the difference between the candidate data value
+that the difference between the candidate data value
 and its predecessor exceeds the trend-break difference (\co{maxdiff}),
-then line~42 exits the loop: We have the full good set of data.
+then line~\lnref{break} exits the loop: We have the full good set of data.
 
-Lines~44-52 then compute and print the statistics for the data set.
+\Clnrefrange{comp_stat:b}{comp_stat:e} then compute and print
+statistics.
+\end{fcvref}
 
-\QuickQuiz{}
+\QuickQuizSeries{%
+\QuickQuizB{
 	This approach is just plain weird!
 	Why not use means and standard deviations, like we were taught
 	in our statistics classes?
-\QuickQuizAnswer{
+}\QuickQuizAnswerB{
 	Because mean and standard deviation were not designed to do this job.
 	To see this, try applying mean and standard deviation to the
-	following data set, given a 1\% relative error in measurement:
+	following data set, given a 1\,\% relative error in measurement:
 
 	\begin{quote}
 		49,548.4 49,549.4 49,550.2 49,550.9 49,550.9 49,551.0
@@ -2339,19 +2615,19 @@ Lines~44-52 then compute and print the statistics for the data set.
 
 	Of course, it is possible to create a script similar to
 	that in
-	Figure~\ref{fig:count:Statistical Elimination of Interference}
+	Listing~\ref{lst:debugging:Statistical Elimination of Interference}
 	that uses standard deviation rather than absolute difference
 	to get a similar effect,
 	and this is left as an exercise for the interested reader.
 	Be careful to avoid divide-by-zero errors arising from strings
 	of identical data values!
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndB
+%
+\QuickQuizE{
 	But what if all the y-values in the trusted group of data
 	are exactly zero?
 	Won't that cause the script to reject any non-zero value?
-\QuickQuizAnswer{
+}\QuickQuizAnswerE{
 	Indeed it will!
 	But if your performance measurements often produce a value of
 	exactly zero, perhaps you need to take a closer look at your
@@ -2359,7 +2635,8 @@ Lines~44-52 then compute and print the statistics for the data set.
 
 	Note that many approaches based on mean and standard deviation
 	will have similar problems with this sort of dataset.
-} \QuickQuizEnd
+}\QuickQuizEndE
+}
 
 Although statistical interference detection can be quite useful, it should
 be used only as a last resort.
@@ -2370,13 +2647,9 @@ detecting interference via measurement
 
 \section{Summary}
 \label{sec:debugging:Summary}
-
-\begin{figure}[tbhp]
-\centering
-\resizebox{3in}{!}{\includegraphics{cartoons/UseTheRightCannon}}
-\caption{Choose Validation Methods Wisely}
-\ContributedBy{Figure}{fig:debugging:Choose Validation Methods Wisely}{Melissa Broussard}
-\end{figure}
+%
+% \epigraph{To err is human---but it feels devine.}{\emph{Mae West}}
+\epigraph{To err is human!  Stop being human!!!}{\emph{Ed Nofziger}}
 
 Although validation never will be an exact science, much can be gained
 by taking an organized approach to it, as an organized approach will
@@ -2384,15 +2657,20 @@ help you choose the right validation tools for your job, avoiding
 situations like the one fancifully depicted in
 Figure~\ref{fig:debugging:Choose Validation Methods Wisely}.
 
+\begin{figure}
+\centering
+\resizebox{3in}{!}{\includegraphics{cartoons/UseTheRightCannon}}
+\caption{Choose Validation Methods Wisely}
+\ContributedBy{Figure}{fig:debugging:Choose Validation Methods Wisely}{Melissa Broussard}
+\end{figure}
+
 A key choice is that of statistics.
 Although the methods described in this chapter work very well most of
-the time, they do have their limitations.
-These limitations are inherent because we are attempting to do something
-that is in general impossible, courtesy of the
-Halting Problem~\cite{AlanMTuring1937HaltingProblem,GeoffreyKPullum2000HaltingProblem}.
-Fortunately for us, there are a huge number of special cases in which
-we can not only work out whether a given program will halt, but also
-establish estimates for how long it will run before halting, as discussed in
+the time, they do have their limitations, courtesy of the Halting
+Problem~\cite{AlanMTuring1937HaltingProblem,GeoffreyKPullum2000HaltingProblem}.
+Fortunately for us, there is a huge number of special cases in which
+we can not only work out whether a program will halt, but also
+estimate how long it will run before halting, as discussed in
 Section~\ref{sec:debugging:Performance Estimation}.
 Furthermore, in cases where a given program might or might not work
 correctly, we can often establish estimates for what fraction of the
@@ -2407,15 +2685,14 @@ Even though we can get away with such bravery a surprisingly large
 fraction of the time, abstracting all that code and data away will
 occasionally cause severe problems.
 
-One possible problem is variability, where repeated runs might give
-wildly different results.
-This is often dealt with by maintaining a standard deviation as well
-as a mean, but the fact is that attempting to summarize the behavior
-of a large and complex program with two numbers is almost as brave as
-summarizing its behavior with only one number.
+One possible problem is variability, where repeated runs give wildly
+different results.
+This problem is often addressed using standard deviation, however, using
+two numbers to summarize the behavior of a large and complex program is
+about as brave as using only one number.
 In computer programming, the surprising thing is that use of the
-mean or the mean and standard deviation are often sufficient, but
-there are no guarantees.
+mean or the mean and standard deviation are often sufficient.
+Nevertheless, there are no guarantees.
 
 One cause of variation is confounding factors.
 For example, the CPU time consumed by a linked-list search will depend
@@ -2428,33 +2705,40 @@ holding the length constant or to measure CPU time as a function of
 list length.
 
 Of course, this advice assumes that you are aware of the confounding
-factors, and Murphy says that you probably will not be.
-I have been involved in projects that had confounding factors as
-diverse as air conditioners (which drew considerable power at startup,
-thus causing the voltage supplied to the computer to momentarily drop
-too low, sometimes resulting in failure), cache state (resulting in
-odd variations in performance), I/O errors (including disk errors,
-packet loss, and duplicate Ethernet MAC addresses), and even
-porpoises (which could not resist playing with an array of transponders,
-which, in the absence of porpoises, could be
-used for high-precision acoustic positioning and navigation).
-And this is but one reason why a good night's sleep is such an
-effective debugging tool.
+factors, and Murphy says that you will not be.
+I have been involved in projects that had confounding factors as diverse
+as air conditioners (which drew considerable power at startup, thus
+causing the voltage supplied to the computer to momentarily drop too
+low, sometimes resulting in failure), cache state (resulting in odd
+variations in performance), I/O errors (including disk errors, packet
+loss, and duplicate Ethernet MAC addresses), and even porpoises (which
+could not resist playing with an array of transponders, which could be
+otherwise used for high-precision acoustic positioning and navigation).
+And this is but one reason why a good night's sleep is such an effective
+debugging tool.
 
 In short, validation always will require some measure of the behavior of
 the system.
-Because this measure must be a severe summarization of the system,
-it can be misleading.
-So as the saying goes, ``Be careful.  It is a real world out there.''
+To be at all useful, this measure must be a severe summarization of the
+system, which in turn means that it can be misleading.
+So as the saying goes, ``Be careful.
+It is a real world out there.''
 
-But suppose you are working on the Linux kernel, which as of 2013 has
-about a billion instances throughout the world?
-In that case, a bug that would be encountered once every million years
-will be encountered almost three times per day across the installed
-base.
-A test with a 50\% chance of encountering this bug in a one-hour run
-would need to increase that bug's probability of occurrence by more
-than nine orders of magnitude, which poses a severe challenge to
+But what if you are working on the Linux kernel, which as of 2017 was
+estimated to have more than 20 billion instances running throughout
+the world?
+In that case, a bug that occurs once every million years on a single system
+will be encountered more than 50 times per day across the installed base.
+A test with a 50\,\% chance of encountering this bug in a one-hour run
+would need to increase that bug's probability of occurrence by more than
+ten orders of magnitude, which poses a severe challenge to
 today's testing methodologies.
 One important tool that can sometimes be applied with good effect to
-such situations is formal verification, the subject of the next chapter.
+such situations is formal verification, the subject of the next chapter,
+and, more speculatively, Section~\ref{sec:future:Formal Regression Testing?}.
+
+The topic of choosing a validation plan, be it testing, formal
+verification, or both, is taken up by
+\cref{sec:formal:Choosing a Validation Plan}.
+
+\QuickQuizAnswersChp{qqzdebugging}

@@ -15,7 +15,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2008 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2008-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include "rcu_pointer.h"
@@ -26,6 +27,7 @@ static void rcu_init(void)
 {
 }
 
+//\begin{snippet}[labelbase=ln:defer:rcu_lock:lock_unlock,commandchars=\\\[\]]
 static void rcu_read_lock(void)
 {
 	spin_lock(&rcu_gp_lock);
@@ -35,5 +37,6 @@ static void rcu_read_unlock(void)
 {
 	spin_unlock(&rcu_gp_lock);
 }
+//\end{snippet}
 
 extern void synchronize_rcu(void);

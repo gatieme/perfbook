@@ -18,9 +18,10 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# Copyright (C) IBM Corporation, 2009
+# Copyright (C) IBM Corporation, 2009-2019
+# Copyright (C) Facebook, 2019
 #
-# Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+# Authors: Paul E. McKenney <paulmck@kernel.org>
 
 fontsize=10
 plotsize=0.5
@@ -82,5 +83,22 @@ set nokey
 plot "data/count_atomic:u.elm3b128.2009.05.29a.dat" w e, "data/count_atomic:u.elm3b128.2009.05.29a.dat" w l
 set term png medium
 set output "atomic_nehalem.png"
+replot
+---EOF---
+
+gnuplot << ---EOF---
+set term postscript portrait ${fontsize} enhanced "NimbusSanL-Regu" fontfile "../../fonts/uhvr8a.pfb"
+set size square ${plotsize},${plotsize}
+set output "|../../utilities/gnuplotepsfix > atomic_hps.eps"
+set xlabel "Number of CPUs (Threads)"
+set xtics rotate
+set ylabel "Time Per Increment (ns)"
+set logscale xy
+#set yrange [1:10000]
+#set yrange [100:10000]
+set nokey
+plot "data/count_atomic:u.hps.2019.10.23a.dat" w e, "data/count_atomic:u.hps.2019.10.23a.dat" w l, 1.46041
+set term png medium
+set output "atomic_hps.png"
 replot
 ---EOF---

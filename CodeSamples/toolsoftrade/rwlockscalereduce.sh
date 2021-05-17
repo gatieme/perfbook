@@ -16,14 +16,15 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# Copyright (C) IBM Corporation, 2009
+# Copyright (C) IBM Corporation, 2009-2019
+# Copyright (C) Facebook, 2019
 #
-# Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+# Authors: Paul E. McKenney <paulmck@kernel.org>
 
 awk '	{
-		if ($7 == 0)
+		if ($5 == 0)
 			next;
-		i = $3 ":" $7;
+		i = $3 ":" $5;
 		n[i]++;
 		sum[i] += $9;
 		if ($9 > max[i])

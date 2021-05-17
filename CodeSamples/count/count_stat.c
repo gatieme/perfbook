@@ -15,27 +15,32 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2009 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2009-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include "../api.h"
 
-DEFINE_PER_THREAD(unsigned long, counter);
+//\begin{snippet}[labelbase=ln:count:count_stat:inc-read,commandchars=\\\[\]]
+DEFINE_PER_THREAD(unsigned long, counter);		//\lnlbl{define}
 
-void inc_count(void)
+static __inline__ void inc_count(void)			//\lnlbl{inc:b}
 {
-	__get_thread_var(counter)++;
-}
+	unsigned long *p_counter = &__get_thread_var(counter);
 
-unsigned long read_count(void)
+	WRITE_ONCE(*p_counter, *p_counter + 1);
+}							//\lnlbl{inc:e}
+
+static __inline__ unsigned long read_count(void)	//\lnlbl{read:b}
 {
 	int t;
 	unsigned long sum = 0;
 
 	for_each_thread(t)
-		sum += per_thread(counter, t);
+		sum += READ_ONCE(per_thread(counter, t));
 	return sum;
-}
+}							//\lnlbl{read:e}
+//\end{snippet}
 
 void count_init(void)
 {

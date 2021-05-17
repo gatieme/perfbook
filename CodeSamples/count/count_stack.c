@@ -16,7 +16,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2009 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2009-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include "../api.h"
@@ -26,9 +27,10 @@ unsigned long *counterp[NR_THREADS] = { NULL };
 unsigned long finalcount = 0;
 DEFINE_SPINLOCK(final_mutex);
 
-void inc_count(void)
+__inline__ void inc_count(void)
 {
-	(*counter)++;
+	WRITE_ONCE(*counter,
+		   READ_ONCE(*counter) + 1);
 }
 
 unsigned long read_count(void)
@@ -45,7 +47,7 @@ unsigned long read_count(void)
 	return sum;
 }
 
-void count_init(void)
+__inline__ void count_init(void)
 {
 }
 
@@ -69,7 +71,7 @@ void count_unregister_thread(int nthreadsexpected)
 	spin_unlock(&final_mutex);
 }
 
-void count_cleanup(void)
+__inline__ void count_cleanup(void)
 {
 }
 

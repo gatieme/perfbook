@@ -16,9 +16,10 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# Copyright (C) IBM Corporation, 2009
+# Copyright (C) IBM Corporation, 2009-2019
+# Copyright (C) Facebook, 2019
 #
-# Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+# Authors: Paul E. McKenney <paulmck@kernel.org>
 
 # We cheat and substitute a 5-second sleep for useful computation.
 function compute_it {
@@ -26,15 +27,17 @@ function compute_it {
 	sleep 5
 }
 
-echo Computing in parallel starting at `date`
-compute_it 1 > compute_it.1.out &
-compute_it 2 > compute_it.2.out &
-wait
-echo Computing in parallel finished at `date`
-echo Computation \"output\":
-cat compute_it.1.out
-cat compute_it.2.out
-rm compute_it.1.out compute_it.2.out
+# \begin{snippet}[labelbase=ln:toolsoftrade:parallel:compute_it,commandchars=\\\{\},style=N]
+echo Computing in parallel starting at `date`	#\fcvexclude
+compute_it 1 > compute_it.1.out &		#\lnlbl{comp1}
+compute_it 2 > compute_it.2.out &		#\lnlbl{comp2}
+wait						#\lnlbl{wait}
+echo Computing in parallel finished at `date`	#\fcvexclude
+echo Computation \"output\":			#\fcvexclude
+cat compute_it.1.out				#\lnlbl{cat1}
+cat compute_it.2.out				#\lnlbl{cat2}
+rm compute_it.1.out compute_it.2.out		#\fcvexclude
+# \end{snippet}
 
 echo
 echo Computing sequentially starting at `date`

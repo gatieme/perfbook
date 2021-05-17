@@ -22,7 +22,8 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# Copyright (C) IBM Corporation, 2012
+# Copyright (C) IBM Corporation, 2012-2019
+# Copyright (C) Facebook, 2019
 # Copyright (C) Akira Yokosawa, 2016, 2017
 #
 # Authors: Paul E. McKenney <paulmck@us.ibm.com>
@@ -50,8 +51,28 @@ identical_warnings () {
 	return 1 ;
 }
 
+exerpt_warnings () {
+	if grep -q "LaTeX Warning:" $basename.log
+	then
+		echo "----- Excerpt around remaining warning messages -----"
+		grep -B 8 -A 5 "LaTeX Warning:" $basename.log | tee $basename-warning.log
+		echo "----- You can see $basename-warning.log for the warnings above. -----"
+		echo "----- If you need to, see $basename.log for details. -----"
+		rm -f $basename-warning-prev.log
+		exit 1
+	fi
+}
+
 iterate_latex () {
-	pdflatex $basename > /dev/null 2>&1 < /dev/null || :
+	makeindex $basename.idx > /dev/null 2>&1
+	makeindex $basename-api.idx > /dev/null 2>&1
+	if grep -q '## Warning' $basename.ilg $basename-api.ilg
+	then
+		echo "----- Warning in makeindex, see .ilg log files. -----"
+		exit 1
+	fi
+	makeglossaries $basename > /dev/null 2>&1
+	pdflatex $LATEX_OPT $basename > /dev/null 2>&1 < /dev/null || :
 	if grep -q '! Emergency stop.' $basename.log
 	then
 		grep -B 15 -A 5 '! Emergency stop.' $basename.log
@@ -82,26 +103,30 @@ basename=`echo $1 | sed -e 's/\.tex$//'`
 
 if ! test -r $basename-first.log
 then
-	if ! sh utilities/mpostcheck.sh
-	then
-		exit 1
-	fi
+	echo "No need to update aux and bbl files."
 	echo "pdflatex 1 for $basename.pdf"
-	iterate_latex
+	iter=1
+else
+	rm -f $basename-first.log
+	echo "pdflatex 2 for $basename.pdf # for possible bib update"
+	iter=2
 fi
-rm -f $basename-first.log
-iter=2
-echo "pdflatex 2 for $basename.pdf # for possible bib update"
 iterate_latex
 min_iter=2
 while grep -q 'LaTeX Warning: There were undefined references' $basename.log
 do
+	if test $undefined_refs
+	then
+		echo "Undefined refs remain, giving up."
+		exerpt_warnings
+	fi
 	if identical_warnings
 	then
 		break
 	fi
 	iter=`expr $iter + 1`
 	echo "pdflatex $iter for $basename.pdf # remaining undefined refs"
+	undefined_refs=1
 	iterate_latex
 done
 min_iter=3
@@ -115,27 +140,21 @@ do
 	echo "pdflatex $iter for $basename.pdf # label(s) may have changed"
 	iterate_latex
 done
-if grep -q "LaTeX Warning:" $basename.log
-then
-	echo "----- Excerpt around remaining warning messages -----"
-	grep -B 8 -A 5 "LaTeX Warning:" $basename.log | tee $basename-warning.log
-	echo "----- You can see $basename-warning.log for the warnings above. -----"
-	echo "----- If you need to, see $basename.log for details. -----"
-	rm -f $basename-warning-prev.log
-	exit 1
-fi
+exerpt_warnings
 rm -f $basename-warning.log $basename-warning-prev.log
 echo "'$basename.pdf' is ready."
+# cleveref version check (Ubuntu 18.04 LTS has buggy one
+if grep -q -F "packageversion{0.21.1}" `kpsewhich cleveref.sty`
+then
+	echo "############################################################"
+	echo "### Buggy version of LaTeX package 'cleveref' detected!! ###"
+	echo "### (Known issue on Ubuntu 18.04 LTS)                    ###"
+	echo "### Please consider installing a stable version.         ###"
+	echo "### See item 10 in FAQ-BUILD.txt for further info.       ###"
+	echo "############################################################"
+fi
 # to avoid redundant run of bibtex and pdflatex
 touch $basename.bbl
 touch $basename.pdf
-if ! strings cartoons/r-2014-Old-man-and-Brat.pdf | grep -q -i -e "Steel City Comic" -e "Test"
-then
-	echo "#######################################################################"
-	echo "## Steel City Comic font is not found in the resulting PDF!          ##"
-	echo "## Some speech balloons in the cartoons have been rendered awkwardly.##"
-	echo "## See item 1 in FAQ.txt and FAQ-BUILD.txt to fix the font issue.    ##"
-	echo "#######################################################################"
-fi
 sh utilities/mpostcheck.sh
 exit 0

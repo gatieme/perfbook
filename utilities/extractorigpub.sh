@@ -18,10 +18,12 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# Copyright (C) IBM Corporation, 2008
+# Copyright (C) IBM Corporation, 2008-2019
+# Copyright (C) Facebook, 2019
 #
-# Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+# Authors: Paul E. McKenney <paulmck@kernel.org>
 
+echo "% mainfile: perfbook.tex"
 sed -n -e '/^\\OriginallyPublished{/p' \
        -e '/^\\RangeOriginallyPublished{/p' |
 sed -e 's/^\\OriginallyPublished{/\\OrigPubItem{/' \

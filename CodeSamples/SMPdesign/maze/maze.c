@@ -15,7 +15,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2011 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2011-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include <stdio.h>
@@ -720,7 +721,7 @@ void usage(char *progname, const char *format, ...)
 	fprintf(stderr, "\t\t(Intended for debugging purposes.)\n");
 	fprintf(stderr, "\t--nofig\n");
 	fprintf(stderr, "\t\tDo not output xfig info.\n");
-	fprintf(stderr, "Maze-generation options:\n", progname);
+	fprintf(stderr, "Maze-generation options:\n");
 	fprintf(stderr, "\t--generate [ rows [ cols ] ]\n");
 	fprintf(stderr, "\t\tRandomly generate maze of specified size.\n");
 	fprintf(stderr, "\t\tDefaults:  rows=41, cols=32.\n");
@@ -744,7 +745,7 @@ void usage(char *progname, const char *format, ...)
 	fprintf(stderr, "\t\tOnly one cell may be walled in per run.\n");
 	fprintf(stderr, "\t\tDefault:  No walling in.\n");
 	fprintf(stderr, "\tAlso uses --start from maze-solution section.\n");
-	fprintf(stderr, "Maze-solution options:\n", progname);
+	fprintf(stderr, "Maze-solution options:\n");
 	fprintf(stderr, "\t--solve\n");
 	fprintf(stderr, "\t\tAttempt to solve the current maze.\n");
 	fprintf(stderr, "\t\tDefault:  Attempt solution.\n");
@@ -766,7 +767,7 @@ void usage(char *progname, const char *format, ...)
 	va_start(ap, format);
 	vfprintf(stderr, format, ap);
 	va_end(ap);
-	exit(-1);
+	exit(EXIT_FAILURE);
 }
 
 int main(int argc, char *argv[])
@@ -973,14 +974,14 @@ int main(int argc, char *argv[])
 				"(0-%d, 0-%d)\n",
 				startrow, startcol,
 				mp->nrows - 1, mp->ncols - 1);
-			exit(-1);
+			exit(EXIT_FAILURE);
 		}
 		if (!maze_cell_exists(mp, endrow, endcol)) {
 			fprintf(stderr,
 				"End position %d %d must be within maze: "
 				"(0-%d, 0-%d)\n",
 				endrow, endcol, mp->nrows - 1, mp->ncols - 1);
-			exit(-1);
+			exit(EXIT_FAILURE);
 		}
 		q = maze_solve(mp, startrow, startcol, endrow, endcol, &dt);
 		if (q == 0) {
@@ -1014,5 +1015,5 @@ int main(int argc, char *argv[])
 		maze_to_fig(figfp, mp, figupc, !solved || figvisit);
 	}
 
-	return 0;
+	return EXIT_SUCCESS;
 }

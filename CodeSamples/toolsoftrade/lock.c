@@ -16,7 +16,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2009 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2009-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #define _GNU_SOURCE
@@ -26,99 +27,116 @@
 #include <errno.h>
 #include "../api.h"
 
-pthread_mutex_t lock_a = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t lock_b = PTHREAD_MUTEX_INITIALIZER;
+//\begin{snippet}[labelbase=ln:toolsoftrade:lock:reader_writer,commandchars=\$\[\]]
+pthread_mutex_t lock_a = PTHREAD_MUTEX_INITIALIZER;	//\lnlbl{lock_a}
+pthread_mutex_t lock_b = PTHREAD_MUTEX_INITIALIZER;	//\lnlbl{lock_b}
 
-int x = 0;
+int x = 0;						//\lnlbl{x}
 
-void *lock_reader(void *arg)
+void *lock_reader(void *arg)				//\lnlbl{reader:b}
 {
+	int en;
 	int i;
 	int newx = -1;
 	int oldx = -1;
-	pthread_mutex_t *pmlp = (pthread_mutex_t *)arg;
+	pthread_mutex_t *pmlp = (pthread_mutex_t *)arg;	//\lnlbl{reader:cast}
 
-	if (pthread_mutex_lock(pmlp) != 0) {
-		perror("lock_reader:pthread_mutex_lock");
-		exit(-1);
-	}
-	for (i = 0; i < 100; i++) {
-		newx = READ_ONCE(x);
+	if ((en = pthread_mutex_lock(pmlp)) != 0) {	//\lnlbl{reader:acq:b}
+		fprintf(stderr, "lock_reader:pthread_mutex_lock: %s\n",
+			strerror(en));
+		exit(EXIT_FAILURE);
+	}						//\lnlbl{reader:acq:e}
+	for (i = 0; i < 100; i++) {			//\lnlbl{reader:loop:b}
+		newx = READ_ONCE(x);			//\lnlbl{reader:read_x}
 		if (newx != oldx) {
 			printf("lock_reader(): x = %d\n", newx);
 		}
 		oldx = newx;
-		poll(NULL, 0, 1);
-	}
-	if (pthread_mutex_unlock(pmlp) != 0) {
-		perror("lock_reader:pthread_mutex_unlock");
-		exit(-1);
-	}
-	return NULL;
-}
+		poll(NULL, 0, 1);			//\lnlbl{reader:sleep}
+	}						//\lnlbl{reader:loop:e}
+	if ((en = pthread_mutex_unlock(pmlp)) != 0) {	//\lnlbl{reader:rel:b}
+		fprintf(stderr, "lock_reader:pthread_mutex_unlock: %s\n",
+			strerror(en));
+		exit(EXIT_FAILURE);
+	}						//\lnlbl{reader:rel:e}
+	return NULL;					//\lnlbl{reader:return}
+}							//\lnlbl{reader:e}
 
-void *lock_writer(void *arg)
+void *lock_writer(void *arg)				//\lnlbl{writer:b}
 {
+	int en;
 	int i;
-	pthread_mutex_t *pmlp = (pthread_mutex_t *)arg;
+	pthread_mutex_t *pmlp = (pthread_mutex_t *)arg;	//\lnlbl{writer:cast}
 
-	if (pthread_mutex_lock(pmlp) != 0) {
-		perror("lock_writer:pthread_mutex_lock");
-		exit(-1);
-	}
-	for (i = 0; i < 3; i++) {
-		WRITE_ONCE(x, READ_ONCE(x) + 1);
+	if ((en = pthread_mutex_lock(pmlp)) != 0) {	//\lnlbl{writer:acq:b}
+		fprintf(stderr, "lock_writer:pthread_mutex_lock: %s\n",
+			strerror(en));
+		exit(EXIT_FAILURE);
+	}						//\lnlbl{writer:acq:e}
+	for (i = 0; i < 3; i++) {			//\lnlbl{writer:loop:b}
+		WRITE_ONCE(x, READ_ONCE(x) + 1);	//\lnlbl{writer:inc}
 		poll(NULL, 0, 5);
-	}
-	if (pthread_mutex_unlock(pmlp) != 0) {
-		perror("lock_writer:pthread_mutex_unlock");
-		exit(-1);
-	}
+	}						//\lnlbl{writer:loop:e}
+	if ((en = pthread_mutex_unlock(pmlp)) != 0) {	//\lnlbl{writer:rel:b}
+		fprintf(stderr, "lock_writer:pthread_mutex_unlock: %s\n",
+			strerror(en));
+		exit(EXIT_FAILURE);
+	}						//\lnlbl{writer:rel:e}
 	return NULL;
-}
+}							//\lnlbl{writer:e}
+//\end{snippet}
 
 int main(int argc, char *argv[])
 {
+	int en; 
 	pthread_t tid1;
 	pthread_t tid2;
 	void *vp;
 
+//\begin{snippet}[labelbase=ln:toolsoftrade:lock:same_lock,commandchars=\$\[\]]
 	printf("Creating two threads using same lock:\n");
-	if (pthread_create(&tid1, NULL, lock_reader, &lock_a) != 0) {
-		perror("pthread_create");
-		exit(-1);
+	en = pthread_create(&tid1, NULL, lock_reader, &lock_a);	//\lnlbl{cr:reader:b}
+	if (en != 0) {
+		fprintf(stderr, "pthread_create: %s\n", strerror(en));
+		exit(EXIT_FAILURE);
+	}							//\lnlbl{cr:reader:e}
+	en = pthread_create(&tid2, NULL, lock_writer, &lock_a); //\lnlbl{cr:writer:b}
+	if (en != 0) {
+		fprintf(stderr, "pthread_create: %s\n", strerror(en));
+		exit(EXIT_FAILURE);
+	}							//\lnlbl{cr:writer:e}
+	if ((en = pthread_join(tid1, &vp)) != 0) {	//\lnlbl{wait:b}
+		fprintf(stderr, "pthread_join: %s\n", strerror(en));
+		exit(EXIT_FAILURE);
 	}
-	if (pthread_create(&tid2, NULL, lock_writer, &lock_a) != 0) {
-		perror("pthread_create");
-		exit(-1);
-	}
-	if (pthread_join(tid1, &vp) != 0) {
-		perror("pthread_join");
-		exit(-1);
-	}
-	if (pthread_join(tid2, &vp) != 0) {
-		perror("pthread_join");
-		exit(-1);
-	}
+	if ((en = pthread_join(tid2, &vp)) != 0) {
+		fprintf(stderr, "pthread_join: %s\n", strerror(en));
+		exit(EXIT_FAILURE);
+	}						//\lnlbl{wait:e}
+//\end{snippet}
 
+//\begin{snippet}[labelbase=ln:toolsoftrade:lock:diff_lock,commandchars=\$\[\]]
 	printf("Creating two threads w/different locks:\n");
 	x = 0;
-	if (pthread_create(&tid1, NULL, lock_reader, &lock_a) != 0) {
-		perror("pthread_create");
-		exit(-1);
+	en = pthread_create(&tid1, NULL, lock_reader, &lock_a);
+	if (en != 0) {
+		fprintf(stderr, "pthread_create: %s\n", strerror(en));
+		exit(EXIT_FAILURE);
 	}
-	if (pthread_create(&tid2, NULL, lock_writer, &lock_b) != 0) {
-		perror("pthread_create");
-		exit(-1);
+	en = pthread_create(&tid2, NULL, lock_writer, &lock_b);
+	if (en != 0) {
+		fprintf(stderr, "pthread_create: %s\n", strerror(en));
+		exit(EXIT_FAILURE);
 	}
-	if (pthread_join(tid1, &vp) != 0) {
-		perror("pthread_join");
-		exit(-1);
+	if ((en = pthread_join(tid1, &vp)) != 0) {
+		fprintf(stderr, "pthread_join: %s\n", strerror(en));
+		exit(EXIT_FAILURE);
 	}
-	if (pthread_join(tid2, &vp) != 0) {
-		perror("pthread_join");
-		exit(-1);
+	if ((en = pthread_join(tid2, &vp)) != 0) {
+		fprintf(stderr, "pthread_join: %s\n", strerror(en));
+		exit(EXIT_FAILURE);
 	}
+//\end{snippet}
 
-	return 0;
+	return EXIT_SUCCESS;
 }

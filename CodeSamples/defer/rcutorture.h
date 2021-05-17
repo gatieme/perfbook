@@ -58,7 +58,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2008 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2008-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 /*
@@ -189,7 +190,7 @@ void perftestrun(int nthreads, int nreaders, int nupdaters)
 	        (double)n_reads),
 	       ((duration * 1000*1000*1000.*(double)nupdaters) /
 	        (double)n_updates));
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 void perftest(int nreaders, int cpustride)
@@ -376,7 +377,7 @@ void stresstest(int nreaders)
 		printf(" %lld", sum);
 	}
 	printf("\n");
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 /*
@@ -387,7 +388,7 @@ void usage(int argc, char *argv[])
 {
 	fprintf(stderr, "Usage: %s [nreaders [ perf | rperf | uperf | stress [cpustride] ] ]\n",
 			argv[0]);
-	exit(-1);
+	exit(EXIT_FAILURE);
 }
 
 int main(int argc, char *argv[])

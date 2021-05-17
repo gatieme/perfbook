@@ -35,7 +35,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2009 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2009-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 /*
@@ -64,6 +65,20 @@ int goflag __attribute__((__aligned__(CACHE_LINE_SIZE))) = GOFLAG_INIT;
 #define count_unregister_thread(n)	do ; while (0)
 #endif /* #ifndef NEED_REGISTER_THREAD */
 
+#ifndef KEEP_GCC_THREAD_LOCAL
+#define _wait_all_threads() wait_all_threads()
+#define _count_unregister_thread(n) count_unregister_thread(n)
+#define final_wait_all_threads()
+#else  /* #ifndef KEEP_GCC_THREAD_LOCAL */
+#define _wait_all_threads() { \
+	while (READ_ONCE(finalthreadcount) < nthreadsexpected) \
+		poll(NULL, 0, 1);}
+#define _count_unregister_thread(n) count_unregister_thread(n + 1)
+#define final_wait_all_threads() { \
+	WRITE_ONCE(finalthreadcount, nthreadsexpected + 1); \
+	wait_all_threads();}
+#endif /* #ifndef KEEP_GCC_THREAD_LOCAL */
+
 unsigned long garbage = 0; /* disable compiler optimizations. */
 
 /*
@@ -81,17 +96,16 @@ void *count_read_perf_test(void *arg)
 	run_on(me);
 	count_register_thread(&k);
 	atomic_inc(&nthreadsrunning);
-	while (ACCESS_ONCE(goflag) == GOFLAG_INIT)
+	while (READ_ONCE(goflag) == GOFLAG_INIT)
 		poll(NULL, 0, 1);
-	while (ACCESS_ONCE(goflag) == GOFLAG_RUN) {
+	while (READ_ONCE(goflag) == GOFLAG_RUN) {
 		for (i = COUNT_READ_RUN; i > 0; i--) {
 			j += read_count();
-			barrier();
 		}
 		n_reads_local += COUNT_READ_RUN;
 	}
 	__get_thread_var(n_reads_pt) += n_reads_local;
-	count_unregister_thread(nthreadsexpected);
+	_count_unregister_thread(nthreadsexpected);
 	garbage += j;
 
 	return (NULL);
@@ -105,17 +119,16 @@ void *count_update_perf_test(void *arg)
 
 	count_register_thread(&k);
 	atomic_inc(&nthreadsrunning);
-	while (ACCESS_ONCE(goflag) == GOFLAG_INIT)
+	while (READ_ONCE(goflag) == GOFLAG_INIT)
 		poll(NULL, 0, 1);
-	while (ACCESS_ONCE(goflag) == GOFLAG_RUN) {
+	while (READ_ONCE(goflag) == GOFLAG_RUN) {
 		for (i = COUNT_UPDATE_RUN; i > 0; i--) {
 			inc_count();
-			barrier();
 		}
 		n_updates_local += COUNT_UPDATE_RUN;
 	}
 	__get_thread_var(n_updates_pt) += n_updates_local;
-	count_unregister_thread(nthreadsexpected);
+	_count_unregister_thread(nthreadsexpected);
 	return NULL;
 }
 
@@ -141,7 +154,7 @@ void perftestrun(int nthreads, int nreaders, int nupdaters)
 	smp_mb();
 	goflag = GOFLAG_STOP;
 	smp_mb();
-	wait_all_threads();
+	_wait_all_threads();
 	count_cleanup();
 	for_each_thread(t) {
 		n_reads += per_thread(n_reads_pt, t);
@@ -161,22 +174,23 @@ void perftestrun(int nthreads, int nreaders, int nupdaters)
 	        (double)n_reads),
 	       ((duration * 1000*1000.*(double)nupdaters) /
 	        (double)n_updates));
-	exit(0);
+	final_wait_all_threads();
+	exit(EXIT_SUCCESS);
 }
 
-void perftest(int nreaders, int cpustride)
+void perftest(int nwriters, int cpustride)
 {
 	int i;
 	long arg;
 
-	perftestinit(nreaders + 1);
-	for (i = 0; i < nreaders; i++) {
+	perftestinit(nwriters + 1);
+	for (i = 0; i < nwriters; i++) {
 		arg = (long)(i * cpustride);
-		create_thread(count_read_perf_test, (void *)arg);
+		create_thread(count_update_perf_test, (void *)arg);
 	}
 	arg = (long)(i * cpustride);
-	create_thread(count_update_perf_test, (void *)arg);
-	perftestrun(i + 1, nreaders, 1);
+	create_thread(count_read_perf_test, (void *)arg);
+	perftestrun(i + 1, 1, nwriters);
 }
 
 void rperftest(int nreaders, int cpustride)
@@ -219,7 +233,7 @@ void usage(int argc, char *argv[])
 		"Usage: %s [nreaders [ rperf [ cpustride ] ] ]\n", argv[0]);
 	fprintf(stderr,
 		"Usage: %s [nupdaters [ uperf [ cpustride ] ] ]\n", argv[0]);
-	exit(-1);
+	exit(EXIT_FAILURE);
 }
 
 int main(int argc, char *argv[])

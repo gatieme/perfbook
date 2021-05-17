@@ -17,7 +17,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2006 Paul E. McKenney, IBM.
+ * Copyright (c) 2006-2019 Paul E. McKenney, IBM.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include <stdio.h>
@@ -53,7 +54,6 @@
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
 	(type *)( (char *)__mptr - offsetof(type,member) );})
 #endif /* #ifndef offsetof */
-#define barrier() __asm__ __volatile__("": : :"memory")
 
 /*
  * Default machine parameters.
@@ -88,7 +88,11 @@ retry:
 
 static __inline__ void spin_lock(spinlock_t *sp)
 {
-	if (pthread_mutex_lock(sp) != 0) {
+	int en;
+
+	en = pthread_mutex_lock(sp);
+	if (en != 0) {
+		fprintf(stderr, "pthread_mutex_lock: %s\n", strerror(en));
 		perror("spin_lock:pthread_mutex_lock");
 		abort();
 	}
@@ -102,14 +106,17 @@ static __inline__ int spin_trylock(spinlock_t *sp)
 		return 1;
 	if (retval == EBUSY)
 		return 0;
-	perror("spin_trylock:pthread_mutex_trylock");
+	fprintf(stderr, "pthread_mutex_trylock: %s\n", strerror(retval));
 	abort();
 }
 
 static __inline__ void spin_unlock(spinlock_t *sp)
 {
-	if (pthread_mutex_unlock(sp) != 0) {
-		perror("spin_unlock:pthread_mutex_unlock");
+	int en;
+
+	en = pthread_mutex_unlock(sp);
+	if (en != 0) {
+		fprintf(stderr, "pthread_mutex_unlock: %s\n", strerror(en));
 		abort();
 	}
 }
@@ -126,9 +133,14 @@ static __inline__ int spin_is_locked(spinlock_t *sp)
 #define spin_lock_irqsave(l, f) do { f = 1; spin_lock(l); } while (0)
 #define spin_unlock_irqrestore(l, f) do { f = 0; spin_unlock(l); } while (0)
 
+//\begin{snippet}[labelbase=ln:api-pthreads:api-pthreads:compiler_barrier,commandchars=\@\[\],numbers=none,xleftmargin=0pt]
 #define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
-#define READ_ONCE(x) ({ typeof(x) ___x = ACCESS_ONCE(x); ___x; })
-#define WRITE_ONCE(x, val) ({ ACCESS_ONCE(x) = (val); })
+#define READ_ONCE(x) \
+                ({ typeof(x) ___x = ACCESS_ONCE(x); ___x; })
+#define WRITE_ONCE(x, val) \
+                do { ACCESS_ONCE(x) = (val); } while (0)
+#define barrier() __asm__ __volatile__("": : :"memory")
+//\end{snippet}
 #ifndef unlikely
 #define unlikely(x) x
 #endif /* #ifndef unlikely */
@@ -143,7 +155,7 @@ static __inline__ int spin_is_locked(spinlock_t *sp)
 
 typedef pthread_t thread_id_t;
 
-#define NR_THREADS 128
+#define NR_THREADS 512
 
 #define __THREAD_ID_MAP_EMPTY 0
 #define __THREAD_ID_MAP_WAITING 1
@@ -186,7 +198,7 @@ static __inline__ int __smp_thread_id(void)
 
 			if (pthread_setspecific(thread_id_key, (void *)v) != 0) {
 				perror("pthread_setspecific");
-				exit(-1);
+				exit(EXIT_FAILURE);
 			}
 			return i;
 		}
@@ -201,7 +213,7 @@ static __inline__ int __smp_thread_id(void)
 	spin_unlock(&__thread_id_map_mutex);
 	fprintf(stderr, "smp_thread_id: Rogue thread, id: %d(%#x)\n",
 		(int)tid, (int)tid);
-	exit(-1);
+	exit(EXIT_FAILURE);
 }
 
 static __inline__ int smp_thread_id(void)
@@ -227,12 +239,12 @@ static __inline__ thread_id_t create_thread(void *(*func)(void *), void *arg)
 	if (i >= NR_THREADS) {
 		spin_unlock(&__thread_id_map_mutex);
 		fprintf(stderr, "Thread limit of %d exceeded!\n", NR_THREADS);
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	__thread_id_map[i] = __THREAD_ID_MAP_WAITING;
 	if (pthread_create(&tid, NULL, func, arg) != 0) {
 		perror("create_thread:pthread_create");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	__thread_id_map[i] = tid;
 	spin_unlock(&__thread_id_map_mutex);
@@ -251,11 +263,11 @@ static __inline__ void *wait_thread(thread_id_t tid)
 	if (i >= NR_THREADS){
 		fprintf(stderr, "wait_thread: bad tid = %d(%#x)\n",
 			(int)tid, (int)tid);
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	if (pthread_join(tid, &vp) != 0) {
 		perror("wait_thread:pthread_join");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	__thread_id_map[i] = __THREAD_ID_MAP_EMPTY;
 	return vp;
@@ -277,43 +289,51 @@ static __inline__ void wait_all_threads(void)
 /*
  * Wait on all child processes.
  */
+// \begin{snippet}[labelbase=ln:api-pthreads:api-pthreads:waitall,commandchars=\%\[\]]
 static __inline__ void waitall(void)
 {
 	int pid;
 	int status;
 
-	for (;;) {
-		pid = wait(&status);
+	for (;;) {				//\lnlbl{loopa}
+		pid = wait(&status);		//\lnlbl{wait}
 		if (pid == -1) {
-			if (errno == ECHILD)
-				break;
-			perror("wait");
-			exit(-1);
+			if (errno == ECHILD)	//\lnlbl{ECHILD}
+				break;		//\lnlbl{break}
+			perror("wait");		//\lnlbl{perror}
+			exit(EXIT_FAILURE);	//\lnlbl{exit}
 		}
-		poll(NULL, 0, 1);
-	}
+		poll(NULL, 0, 1);		//\fcvexclude
+	}					//\lnlbl{loopb}
 }
+// \end{snippet}
 
 static __inline__ void run_on(int cpu)
 {
 	cpu_set_t mask;
+	int ret;
 
 	CPU_ZERO(&mask);
 	CPU_SET(cpu, &mask);
-	sched_setaffinity(0, sizeof(mask), &mask);
+	ret = sched_setaffinity(0, sizeof(mask), &mask);
+	if (ret) {
+		perror("sched_setaffinity");
+		abort();
+	}
 }
 
 /*
- * timekeeping -- very crude -- should use MONOTONIC...
+ * Timekeeping, using monotonic globally coherent clock.
  */
 
 static __inline__ long long get_microseconds(void)
 {
-	struct timeval tv;
+	struct timespec ts;
 
-	if (gettimeofday(&tv, NULL) != 0)
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
 		abort();
-	return ((long long)tv.tv_sec) * 1000000LL + (long long)tv.tv_usec;
+	return ((long long)ts.tv_sec) * 1000000LL +
+	       (long long)ts.tv_nsec / 1000LL;
 }
 
 /*
@@ -469,6 +489,6 @@ static __inline__ void smp_init(void)
 	init_per_thread(smp_processor_id, 0);
 	if (pthread_key_create(&thread_id_key, NULL) != 0) {
 		perror("pthread_key_create");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 }

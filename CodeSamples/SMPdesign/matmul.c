@@ -15,7 +15,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2009 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2009-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include "../api.h"
@@ -23,6 +24,7 @@
 float *a;
 float *b;
 float *c;
+float *d;
 long dim = 1000;
 int nthread = 1;
 
@@ -38,14 +40,19 @@ atomic_t nstarted;
 
 void *matmul_thread(void *me_in)
 {
+	long blocksize = (dim + nthread - 1) / nthread;
 	long me = (intptr_t)me_in;
 	int i, j, k;
+	long startidx = me * blocksize;
+	long stopidx = startidx + blocksize;
 
+	if (stopidx > dim)
+		stopidx = dim;
 	atomic_inc(&nstarted);
 	while (goflag == GOFLAG_INIT)
 		barrier();
 
-	for (i = me; i < dim; i += nthread)
+	for (i = startidx; i < stopidx; i++)
 		for (j = 0; j < dim; j++) {
 			c[IDX(i, j)] = 0.;
 			for (k = 0; k < dim; k++)
@@ -58,9 +65,9 @@ void *matmul_thread(void *me_in)
 
 int main(int argc, char *argv[])
 {
-	int i, j;
+	int i, j, k;
 	long long startcreatetime;
-	long long starttime;
+	long long endpartime;
 	long long endtime;
 
 	if (argc >= 2)
@@ -73,9 +80,10 @@ int main(int argc, char *argv[])
 	a = malloc(sizeof(a[0]) * dim * dim);
 	b = malloc(sizeof(b[0]) * dim * dim);
 	c = malloc(sizeof(c[0]) * dim * dim);
-	if (a == NULL || b == NULL || c == NULL) {
+	d = malloc(sizeof(c[0]) * dim * dim);
+	if (a == NULL || b == NULL || c == NULL || d == NULL) {
 		printf("Out of memory\n");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 
 	for (i = 0; i < dim; i++)
@@ -90,12 +98,21 @@ int main(int argc, char *argv[])
 		create_thread(matmul_thread, (void *)(intptr_t)i);
 	while (atomic_read(&nstarted) != nthread)
 		barrier();
-	starttime = get_microseconds();
 	goflag = GOFLAG_START;
 	while (atomic_read(&ndone) != nthread)
 		poll(NULL, 0, 1);
+	endpartime = get_microseconds();
+	for (i = 0; i < dim; i++)
+		for (j = 0; j < dim; j++) {
+			d[IDX(i, j)] = 0.;
+			for (k = 0; k < dim; k++)
+				d[IDX(i, j)] += a[IDX(i, k)] * b[IDX(k, j)];
+		}
 	endtime = get_microseconds();
+	for (i = 0; i < dim; i++)
+		for (j = 0; j < dim; j++)
+			BUG_ON(c[IDX(i, j)] != d[IDX(i, j)]);
 	printf("dim = %ld, nthread = %d, duration = %lld : %lld us\n",
-	       dim, nthread, endtime - startcreatetime, endtime - starttime);
-	return 0;
+	       dim, nthread, endpartime - startcreatetime, endtime - endpartime);
+	return EXIT_SUCCESS;
 }

@@ -12,7 +12,8 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# Copyright (c) 2008 Paul E. McKenney, IBM Corporation.
+# Copyright (c) 2008-2019 Paul E. McKenney, IBM Corporation.
+# Copyright (c) 2019 Paul E. McKenney, Facebook.
 
 include ../Makefile.arch
 
@@ -44,6 +45,7 @@ ARCH_DEPENDENT = gettimestamp \
 	route_seq \
 	route_seqlock \
 	seqlocktorture \
+	singleton \
 
 PROGS = $(ARCH_DEPENDENT) $(ARCH_INDEPENDENT)
 
@@ -123,7 +125,7 @@ rcu_sig: rcu_sig.c rcu_sig.h ../api.h rcutorture.h
 rcu_ts: rcu_ts.c rcu_ts.h ../api.h rcutorture.h
 	cc $(GCC_ARGS) -o rcu_ts -DTEST rcu_ts.c -lpthread
 
-route_hazptr: route_hazptr.c ../api.h ../lib/random.h ../lib/random.c routetorture.h
+route_hazptr: route_hazptr.c hazptr.c hazptr.h ../api.h ../lib/random.h ../lib/random.c routetorture.h
 	cc $(GCC_ARGS) -o route_hazptr route_hazptr.c hazptr.c ../lib/random.c -lpthread
 
 route_rcu: route_rcu.c ../api.h ../lib/random.h ../lib/random.c routetorture.h
@@ -143,6 +145,9 @@ route_seqlock: route_seqlock.c ../api.h seqlock.h ../lib/random.h ../lib/random.
 
 seqlocktorture: seqlocktorture.c seqlock.h ../api.h
 	cc $(GCC_ARGS) -o seqlocktorture seqlocktorture.c -lpthread
+
+singleton: singleton.c ../api.h ../lib/random.h ../lib/random.c
+	cc -O0 -Wall -g -o singleton singleton.c ../lib/random.c -lpthread  -lurcu -lurcu-signal
 
 clean:
 	rm -f $(PROGS)

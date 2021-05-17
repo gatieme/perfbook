@@ -40,7 +40,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2009 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2009-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 /*
@@ -89,7 +90,7 @@ void *count_updown_limit(void *arg)
 	run_on(me);
 	count_register_thread();
 	atomic_inc(&nthreadsrunning);
-	while (ACCESS_ONCE(goflag) != GOFLAG_RUN_UP)
+	while (READ_ONCE(goflag) != GOFLAG_RUN_UP)
 		poll(NULL, 0, 1);
 	while (add_count(1)) {
 		n_updates_local++;
@@ -97,7 +98,7 @@ void *count_updown_limit(void *arg)
 	__get_thread_var(n_updates_pt) += n_updates_local;
 	smp_mb();
 	atomic_inc(&n_threads_run_up);
-	while (ACCESS_ONCE(goflag) != GOFLAG_RUN_DOWN)
+	while (READ_ONCE(goflag) != GOFLAG_RUN_DOWN)
 		poll(NULL, 0, 1);
 	n_updates_local = 0LL;
 	while (sub_count(1)) {
@@ -106,7 +107,7 @@ void *count_updown_limit(void *arg)
 	__get_thread_var(n_updates_pt) += n_updates_local;
 	smp_mb();
 	atomic_inc(&n_threads_run_down);
-	while (ACCESS_ONCE(goflag) != GOFLAG_STOP)
+	while (READ_ONCE(goflag) != GOFLAG_STOP)
 		poll(NULL, 0, 1);
 	count_unregister_thread(nthreadsexpected);
 	return NULL;
@@ -120,17 +121,17 @@ void *count_updown_hog(void *arg)
 	run_on(me);
 	count_register_thread();
 	atomic_inc(&nthreadsrunning);
-	while (ACCESS_ONCE(goflag) == GOFLAG_INIT)
+	while (READ_ONCE(goflag) == GOFLAG_INIT)
 		poll(NULL, 0, 1);
 	delta = num_online_threads() * 20;
 	if (!add_count(delta)) {
 		fprintf(stderr, "count_updown_hog(): add_count() failed!\n");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	__get_thread_var(n_updates_pt) += delta;
 	smp_mb();
 	atomic_inc(&n_threads_hog);
-	while (ACCESS_ONCE(goflag) != GOFLAG_STOP)
+	while (READ_ONCE(goflag) != GOFLAG_STOP)
 		poll(NULL, 0, 1);
 	count_unregister_thread(nthreadsexpected);
 	return NULL;
@@ -192,7 +193,7 @@ void hogtest(int nreaders, int cpustride)
 	goflag = GOFLAG_STOP;
 	smp_mb();
 	wait_all_threads();
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 /*
@@ -209,9 +210,9 @@ void *count_read_perf_test(void *arg)
 	run_on(me);
 	count_register_thread();
 	atomic_inc(&nthreadsrunning);
-	while (ACCESS_ONCE(goflag) == GOFLAG_INIT)
+	while (READ_ONCE(goflag) == GOFLAG_INIT)
 		poll(NULL, 0, 1);
-	while (ACCESS_ONCE(goflag) == GOFLAG_RUN) {
+	while (READ_ONCE(goflag) == GOFLAG_RUN) {
 		for (i = COUNT_READ_RUN; i > 0; i--) {
 			j += read_count();
 			barrier();
@@ -232,9 +233,9 @@ void *count_update_perf_test(void *arg)
 
 	count_register_thread();
 	atomic_inc(&nthreadsrunning);
-	while (ACCESS_ONCE(goflag) == GOFLAG_INIT)
+	while (READ_ONCE(goflag) == GOFLAG_INIT)
 		poll(NULL, 0, 1);
-	while (ACCESS_ONCE(goflag) == GOFLAG_RUN) {
+	while (READ_ONCE(goflag) == GOFLAG_RUN) {
 		for (i = COUNT_UPDATE_RUN; i > 0; i--) {
 			add_count(1);
 			sub_count(1);
@@ -285,7 +286,7 @@ void perftestrun(int nthreads, int nreaders, int nupdaters)
 	        (double)n_reads),
 	       ((duration * 1000*1000.*(double)nupdaters) /
 	        (double)n_updates));
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 void perftest(int nreaders, int cpustride)
@@ -345,7 +346,7 @@ void usage(int argc, char *argv[])
 		"Usage: %s [nreaders [ uperf [ cpustride ] ] ]\n", argv[0]);
 	fprintf(stderr,
 		"Usage: %s [nreaders [ hog [ cpustride ] ] ]\n", argv[0]);
-	exit(-1);
+	exit(EXIT_FAILURE);
 }
 
 int main(int argc, char *argv[])

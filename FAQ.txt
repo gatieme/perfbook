@@ -38,6 +38,11 @@
 		In addition, edition-level releases will be made more
 		readily available in printed form.
 
+		Finally, Chinese-language hardcopy is available, as
+		called out in this blog post:
+
+		https://paulmck.livejournal.com/47651.html
+
 4.	This book doesn't mention my favorite parallel-programming
 	tools, languages, and algorithms.  Plus its Makefile and
 	Latex formatting are imperfect.  What is up with that?
@@ -123,9 +128,12 @@
 
 		http://kernel.org/pub/linux/kernel/people/paulmck/perfbook/perfbook-cn.2011.10.18a.pdf
 
-		Motohiro Kanda has started work on a Japanese translation:
+		Motohiro Kanda has a Japanese translation of Chapters 1-16
+		and Appendices A-D and F based on the 2014 print edition,
+		but with the "Parallel Real-Time Computing" and "Axiomatic
+		Approaches" sections taken from later editions:
 
-		https://sites.google.com/site/kandamotohiro/perfbook
+		https://sites.google.com/view/kandamotohiro2/perfbook
 
 		SeongJae Park has started work on a Korean translation:
 
@@ -134,8 +142,9 @@
 7.	I am working on a translation.  What do I need to do to get my
 	name of the list in #6 above?
 
-	A.	Send me at least one chapter of your translated work
-		in machine-readable form, preferable PDF.
+	A.	Send at least one chapter of your translated work
+		in machine-readable form, preferably PDF, to the
+		email list called above.
 
 8.	May I please have permission to sell hardcopies of my translated
 	version of this book?
@@ -152,8 +161,12 @@
 
 	A.	Quite a few people like them a lot, so they will be
 		staying.  However, you can easily produce a copy of the
-		book that omits the Quick Quizzes by editing the Makefile
-		and qqz.sty files in the top-level directory.
+		book that hides the quiz part of Quick Quizzes in the
+		text by "make nq".
+
+		If the resulting perfbook-nq.pdf does not satisfy you,
+		you can edit the Makefile and qqz.sty files in the
+		top-level directory as you like.
 
 		One approach is to make the "\QuickQuiz" command in
 		qqz.sty be a no-op and to add line to the Makefile that
@@ -180,3 +193,15 @@
 		enables similar transformations and remixes.  That said,
 		one of the advantages of the current form of the Quick
 		Quizzes is that this promotes faster and better learning.
+
+10.	What is the difference between a "release" and an "edition"?
+
+	A.	A release is a snapshot provided for readers who would
+		like something reasonably up to date, but who do not wish
+		to install all the pieces of LaTeX required to build one
+		themselves.  Every few years, there will be a special
+		release with more-consistent look and feel, and with
+		fewer (and preferably no) sections under construction,
+		and these special releases are called "editions".  Also,
+		as noted earlier, each edition has a version that may
+		be more easily printed.

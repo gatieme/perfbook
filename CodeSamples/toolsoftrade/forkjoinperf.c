@@ -15,7 +15,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2009 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2009-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include <stdio.h>
@@ -34,7 +35,7 @@ int main(int argc, char *argv[])
 
 	if (argc != 2) {
 		fprintf(stderr, "Usage: %s nforks\n", argv[0]);
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	nforks = atoi(argv[1]);
 	printf("%d fork()s\n", nforks);
@@ -44,11 +45,11 @@ int main(int argc, char *argv[])
 	for (i = 0; i < nforks; i++) {
 		pid = fork();
 		if (pid == 0) { /* child */
-			exit(0);
+			exit(EXIT_SUCCESS);
 		}
 		if (pid < 0) { /* parent, upon error */
 			perror("fork");
-			exit(-1);
+			exit(EXIT_FAILURE);
 		}
 		for (;;) {
 			pid = wait(&status);
@@ -56,7 +57,7 @@ int main(int argc, char *argv[])
 				if (errno == ECHILD)
 					break;
 				perror("wait");
-				exit(-1);
+				exit(EXIT_FAILURE);
 			}
 		}
 	}
@@ -64,5 +65,5 @@ int main(int argc, char *argv[])
 	fflush(stdout);
 	i = system("date");
 
-	return 0;
+	return EXIT_SUCCESS;
 }

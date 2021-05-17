@@ -16,18 +16,19 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2013 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2013-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #define _GNU_SOURCE
 #define _LGPL_SOURCE
 
-// Uncomment to enable signal-based RCU.  (Need corresponding Makefile change!)
+#ifdef PERFBOOK_RCU_QSBR
+#include <urcu-qsbr.h>
+#else
 #define RCU_SIGNAL
 #include <urcu.h>
-
-// Uncomment to enable QSBR.  (Need corresponding Makefile change!)
-//#include <urcu-qsbr.h>
+#endif
 
 #include "../../api.h"
 
@@ -65,16 +66,20 @@ static void hashtab_unlock(struct hashtab *htp, unsigned long hash)
 	spin_unlock(&HASH2BKT(htp, hash)->htb_lock);
 }
 
+//\begin{snippet}[labelbase=ln:datastruct:hash_bkt_rcu:lock_unlock,commandchars=\\\[\]]
 /* Read-side lock/unlock functions. */
-static void hashtab_lock_lookup(struct hashtab *htp, unsigned long hash)
+static void hashtab_lock_lookup(struct hashtab *htp,
+                                unsigned long hash)
 {
 	rcu_read_lock();
 }
 
-static void hashtab_unlock_lookup(struct hashtab *htp, unsigned long hash)
+static void hashtab_unlock_lookup(struct hashtab *htp,
+                                  unsigned long hash)
 {
 	rcu_read_unlock();
 }
+//\end{snippet}
 
 /* Update-side lock/unlock functions. */
 static void hashtab_lock_mod(struct hashtab *htp, unsigned long hash)
@@ -88,6 +93,14 @@ static void hashtab_unlock_mod(struct hashtab *htp, unsigned long hash)
 }
 
 /*
+ * Finished using a looked up hashtable element.
+ */
+void hashtab_lookup_done(struct ht_elem *htep)
+{
+}
+
+//\begin{snippet}[labelbase=ln:datastruct:hash_bkt_rcu:lookup,commandchars=\\\[\]]
+/*
  * Look up a key.  Caller must have acquired either a read-side or update-side
  * lock via either hashtab_lock_lookup() or hashtab_lock_mod().  Note that
  * the return is a pointer to the ht_elem: Use offset_of() or equivalent
@@ -96,13 +109,17 @@ static void hashtab_unlock_mod(struct hashtab *htp, unsigned long hash)
  * Note that the caller is responsible for mapping from whatever type
  * of key is in use to an unsigned long, passed in via "hash".
  */
-struct ht_elem *hashtab_lookup(struct hashtab *htp, unsigned long hash,
-			       void *key)
+struct ht_elem *hashtab_lookup(struct hashtab *htp,
+                               unsigned long hash,
+                               void *key)
 {
-	struct ht_elem *htep;
+	struct ht_bucket *htb;
+	struct ht_elem  *htep;
 
-	cds_list_for_each_entry_rcu(htep, &HASH2BKT(htp, hash)->htb_head,
-				    hte_next) {
+	htb = HASH2BKT(htp, hash);
+	cds_list_for_each_entry_rcu(htep,
+	                            &htb->htb_head,
+	                            hte_next) {
 		if (htep->hte_hash != hash)
 			continue;
 		if (htp->ht_cmp(htep, key))
@@ -110,15 +127,20 @@ struct ht_elem *hashtab_lookup(struct hashtab *htp, unsigned long hash,
 	}
 	return NULL;
 }
+//\end{snippet}
 
+//\begin{snippet}[labelbase=ln:datastruct:hash_bkt_rcu:add_del,commandchars=\\\[\]]
 /*
  * Add an element to the hash table.  Caller must have acquired the
  * update-side lock via hashtab_lock_mod().
  */
-void hashtab_add(struct hashtab *htp, unsigned long hash, struct ht_elem *htep)
+void hashtab_add(struct hashtab *htp,
+                 unsigned long hash,
+                 struct ht_elem *htep)
 {
 	htep->hte_hash = hash;
-	cds_list_add_rcu(&htep->hte_next, &HASH2BKT(htp, hash)->htb_head);
+	cds_list_add_rcu(&htep->hte_next,
+	                 &HASH2BKT(htp, hash)->htb_head);
 }
 
 /*
@@ -129,6 +151,7 @@ void hashtab_del(struct ht_elem *htep)
 {
 	cds_list_del_rcu(&htep->hte_next);
 }
+//\end{snippet}
 
 /*
  * Allocate a new hash table with the specified number of buckets.

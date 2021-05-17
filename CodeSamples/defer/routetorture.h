@@ -15,7 +15,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2016 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2016-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #define _GNU_SOURCE
@@ -356,7 +357,7 @@ void usage(char *progname, const char *format, ...)
 	fprintf(stderr, "\t\tdefaults to 1.\n");
 	fprintf(stderr, "\t--duration\n");
 	fprintf(stderr, "\t\tDuration of test, in milliseconds.\n");
-	exit(-1);
+	exit(EXIT_FAILURE);
 }
 
 /*
@@ -376,7 +377,7 @@ int main(int argc, char *argv[])
 				usage(argv[0],
 				      "Excess arguments for %s\n", argv[i]);
 			smoketest();
-			exit(0);
+			exit(EXIT_SUCCESS);
 		} else if (strcmp(argv[i], "--perftest") == 0) {
 			test_to_do = perftest;
 			if (i != 1)

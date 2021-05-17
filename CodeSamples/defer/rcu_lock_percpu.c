@@ -16,21 +16,24 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2008 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2008-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include "../api.h"
 #include "rcu_lock_percpu.h"
 
+//\begin{snippet}[labelbase=ln:defer:rcu_lock_percpu:sync,commandchars=\\\[\]]
 void synchronize_rcu(void)
 {
 	int t;
 
-	for_each_running_thread(t) {
+	for_each_running_thread(t) {		//\lnlbl{loop:b}
 		spin_lock(&per_thread(rcu_gp_lock, t));
 		spin_unlock(&per_thread(rcu_gp_lock, t));
-	}
+	}					//\lnlbl{loop:e}
 }
+//\end{snippet}
 
 #ifdef TEST
 #include "rcutorture.h"

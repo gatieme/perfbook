@@ -1,7 +1,13 @@
 % together/applyrcu.tex
+% mainfile: ../perfbook.tex
+% SPDX-License-Identifier: CC-BY-SA-3.0
 
 \section{RCU Rescues}
 \label{sec:together:RCU Rescues}
+%
+\epigraph{With great doubts comes great understanding, with little doubts
+	  comes little understanding.}
+	 {\emph{Chinese proverb}}
 
 This section shows how to apply RCU to some examples discussed earlier
 in this book.
@@ -11,7 +17,7 @@ performance and scalability, and in still other cases, both.
 \subsection{RCU and Per-Thread-Variable-Based Statistical Counters}
 \label{sec:together:RCU and Per-Thread-Variable-Based Statistical Counters}
 
-Section~\ref{sec:count:Per-Thread-Variable-Based Implementation}
+\Cref{sec:count:Per-Thread-Variable-Based Implementation}
 described an implementation of statistical counters that provided
 excellent
 performance, roughly that of simple increment (as in the C \co{++}
@@ -21,12 +27,12 @@ Unfortunately, threads needing to read out the value via \co{read_count()}
 were required to acquire a global
 lock, and thus incurred high overhead and suffered poor scalability.
 The code for the lock-based implementation is shown in
-Figure~\ref{fig:count:Per-Thread Statistical Counters} on
-Page~\pageref{fig:count:Per-Thread Statistical Counters}.
+\cref{lst:count:Per-Thread Statistical Counters} on
+Page~\pageref{lst:count:Per-Thread Statistical Counters}.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Why on earth did we need that global lock in the first place?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	A given thread's \co{__thread} variables vanish when that
 	thread exits.
 	It is therefore necessary to synchronize any operation that
@@ -34,7 +40,7 @@ Page~\pageref{fig:count:Per-Thread Statistical Counters}.
 	thread exit.
 	Without such synchronization, accesses to \co{__thread} variable
 	of a just-exited thread will result in segmentation faults.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 \subsubsection{Design}
 
@@ -52,52 +58,6 @@ And in fact, one of the purposes of \co{final_mutex} is to
 ensure that threads do not come and go in the middle of \co{read_count()}
 execution.
 
-\QuickQuiz{}
-	Just what is the accuracy of \co{read_count()}, anyway?
-\QuickQuizAnswer{
-	Refer to
-	Figure~\ref{fig:count:Per-Thread Statistical Counters} on
-	Page~\pageref{fig:count:Per-Thread Statistical Counters}.
-	Clearly, if there are no concurrent invocations of \co{inc_count()},
-	\co{read_count()} will return an exact result.
-	However, if there \emph{are} concurrent invocations of
-	\co{inc_count()}, then the sum is in fact changing as
-	\co{read_count()} performs its summation.
-	That said, because thread creation and exit are excluded by
-	\co{final_mutex}, the pointers in \co{counterp} remain constant.
-
-	Let's imagine a mythical machine that is able to take an
-	instantaneous snapshot of its memory.
-	Suppose that this machine takes such a snapshot at the
-	beginning of \co{read_count()}'s execution, and another
-	snapshot at the end of \co{read_count()}'s execution.
-	Then \co{read_count()} will access each thread's counter
-	at some time between these two snapshots, and will therefore
-	obtain a result that is bounded by those of the two snapshots,
-	inclusive.
-	The overall sum will therefore be bounded by the pair of sums that
-	would have been obtained from each of the two snapshots (again,
-	inclusive).
-
-	The expected error is therefore half of the difference between
-	the pair of sums that would have been obtained from each of the
-	two snapshots, that is to say, half of the execution time of
-	\co{read_count()} multiplied by the number of expected calls to
-	\co{inc_count()} per unit time.
-
-	Or, for those who prefer equations:
-	\begin{equation}
-	\epsilon = \frac{T_r R_i}{2}
-	\end{equation}
-	where $\epsilon$ is the expected error in \co{read_count()}'s
-	return value,
-	$T_r$ is the time that \co{read_count()} takes to execute,
-	and $R_i$ is the rate of \co{inc_count()} calls per unit time.
-	(And of course, $T_r$ and $R_i$ should use the same units of
-	time: microseconds and calls per microsecond, seconds and calls
-	per second, or whatever, as long as they are the same units.)
-} \QuickQuizEnd
-
 Therefore, if we are to dispense with \co{final_mutex}, we will need
 to come up with some other method for ensuring consistency.
 One approach is to place the total count for all previously exited
@@ -108,89 +68,9 @@ held constant, ensuring that \co{read_count()} sees consistent data.
 
 \subsubsection{Implementation}
 
-\begin{figure}[bp]
-{ \scriptsize
-\begin{verbbox}
-  1 struct countarray {
-  2   unsigned long total;
-  3   unsigned long *counterp[NR_THREADS];
-  4 };
-  5 
-  6 long __thread counter = 0;
-  7 struct countarray *countarrayp = NULL;
-  8 DEFINE_SPINLOCK(final_mutex);
-  9 
- 10 void inc_count(void)
- 11 {
- 12   counter++;
- 13 }
- 14 
- 15 long read_count(void)
- 16 {
- 17   struct countarray *cap;
- 18   unsigned long sum;
- 19   int t;
- 20 
- 21   rcu_read_lock();
- 22   cap = rcu_dereference(countarrayp);
- 23   sum = cap->total;
- 24   for_each_thread(t)
- 25     if (cap->counterp[t] != NULL)
- 26       sum += *cap->counterp[t];
- 27   rcu_read_unlock();
- 28   return sum;
- 29 }
- 30 
- 31 void count_init(void)
- 32 {
- 33   countarrayp = malloc(sizeof(*countarrayp));
- 34   if (countarrayp == NULL) {
- 35     fprintf(stderr, "Out of memory\n");
- 36     exit(-1);
- 37   }
- 38   memset(countarrayp, '\0', sizeof(*countarrayp));
- 39 }
- 40 
- 41 void count_register_thread(void)
- 42 {
- 43   int idx = smp_thread_id();
- 44 
- 45   spin_lock(&final_mutex);
- 46   countarrayp->counterp[idx] = &counter;
- 47   spin_unlock(&final_mutex);
- 48 }
- 49 
- 50 void count_unregister_thread(int nthreadsexpected)
- 51 {
- 52   struct countarray *cap;
- 53   struct countarray *capold;
- 54   int idx = smp_thread_id();
- 55 
- 56   cap = malloc(sizeof(*countarrayp));
- 57   if (cap == NULL) {
- 58     fprintf(stderr, "Out of memory\n");
- 59     exit(-1);
- 60   }
- 61   spin_lock(&final_mutex);
- 62   *cap = *countarrayp;
- 63   cap->total += counter;
- 64   cap->counterp[idx] = NULL;
- 65   capold = countarrayp;
- 66   rcu_assign_pointer(countarrayp, cap);
- 67   spin_unlock(&final_mutex);
- 68   synchronize_rcu();
- 69   free(capold);
- 70 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{RCU and Per-Thread Statistical Counters}
-\label{fig:together:RCU and Per-Thread Statistical Counters}
-\end{figure}
-
-Lines~1-4 of
-Figure~\ref{fig:together:RCU and Per-Thread Statistical Counters}
+\begin{fcvref}[ln:count:count_end_rcu:whole]
+\Clnrefrange{struct:b}{struct:e} of
+\cref{lst:together:RCU and Per-Thread Statistical Counters}
 show the \co{countarray} structure, which contains a
 \co{->total} field for the count from previously exited threads,
 and a \co{counterp[]} array of pointers to the per-thread
@@ -199,47 +79,64 @@ This structure allows a given execution of \co{read_count()}
 to see a total that is consistent with the indicated set of running
 threads.
 
-Lines~6-8 contain the definition of the per-thread \co{counter}
+\begin{listing}
+\ebresizeverb{.71}{\input{CodeSamples/count/count_end_rcu@whole.fcv}}
+\caption{RCU and Per-Thread Statistical Counters}
+\label{lst:together:RCU and Per-Thread Statistical Counters}
+\end{listing}
+
+\Clnrefrange{perthread:b}{perthread:e}
+contain the definition of the per-thread \co{counter}
 variable, the global pointer \co{countarrayp} referencing
 the current \co{countarray} structure, and
 the \co{final_mutex} spinlock.
 
-Lines~10-13 show \co{inc_count()}, which is unchanged from
-Figure~\ref{fig:count:Per-Thread Statistical Counters}.
+\Clnrefrange{inc:b}{inc:e} show \co{inc_count()}, which is unchanged from
+\cref{lst:count:Per-Thread Statistical Counters}.
+\end{fcvref}
 
-Lines~15-29 show \co{read_count()}, which has changed significantly.
-Lines~21 and~27 substitute \co{rcu_read_lock()} and
+\begin{fcvref}[ln:count:count_end_rcu:whole:read]
+\Clnrefrange{b}{e} show \co{read_count()}, which has changed significantly.
+\Clnref{rrl,rru} substitute \co{rcu_read_lock()} and
 \co{rcu_read_unlock()} for acquisition and release of \co{final_mutex}.
-Line~22 uses \co{rcu_dereference()} to snapshot the
+\Clnref{deref} uses \co{rcu_dereference()} to snapshot the
 current \co{countarray} structure into local variable \co{cap}.
 Proper use of RCU will guarantee that this \co{countarray} structure
 will remain with us through at least the end of the current RCU
-read-side critical section at line~27.
-Line~23 initializes \co{sum} to \co{cap->total}, which is the
+read-side critical section at \clnref{rru}.
+\Clnref{init} initializes \co{sum} to \co{cap->total}, which is the
 sum of the counts of threads that have previously exited.
-Lines~24-26 add up the per-thread counters corresponding to currently
-running threads, and, finally, line~28 returns the sum.
+\Clnrefrange{add:b}{add:e} add up the per-thread counters corresponding
+to currently
+running threads, and, finally, \clnref{ret} returns the sum.
+\end{fcvref}
 
+\begin{fcvref}[ln:count:count_end_rcu:whole:init]
 The initial value for \co{countarrayp} is
-provided by \co{count_init()} on lines~31-39.
+provided by \co{count_init()} on \clnrefrange{b}{e}.
 This function runs before the first thread is created, and its job
 is to allocate
 and zero the initial structure, and then assign it to \co{countarrayp}.
+\end{fcvref}
 
-Lines~41-48 show the \co{count_register_thread()} function, which
+\begin{fcvref}[ln:count:count_end_rcu:whole:reg]
+\Clnrefrange{b}{e} show the \co{count_register_thread()} function, which
 is invoked by each newly created thread.
-Line~43 picks up the current thread's index, line~45 acquires
-\co{final_mutex}, line~46 installs a pointer to this thread's
-\co{counter}, and line~47 releases \co{final_mutex}.
+\Clnref{idx} picks up the current thread's index, \clnref{acq} acquires
+\co{final_mutex}, \clnref{set} installs a pointer to this thread's
+\co{counter}, and \clnref{rel} releases \co{final_mutex}.
+\end{fcvref}
 
-\QuickQuiz{}
+\QuickQuiz{
+	\begin{fcvref}[ln:count:count_end_rcu:whole:reg]
 	Hey!!!
-	Line~46 of
-	Figure~\ref{fig:together:RCU and Per-Thread Statistical Counters}
+	\Clnref{set} of
+	\cref{lst:together:RCU and Per-Thread Statistical Counters}
 	modifies a value in a pre-existing \co{countarray} structure!
 	Didn't you say that this structure, once made available to
 	\co{read_count()}, remained constant???
-\QuickQuizAnswer{
+	\end{fcvref}
+}\QuickQuizAnswer{
 	Indeed I did say that.
 	And it would be possible to make \co{count_register_thread()}
 	allocate a new structure, much as \co{count_unregister_thread()}
@@ -254,41 +151,64 @@ Line~43 picks up the current thread's index, line~45 acquires
 	So, interestingly enough, when adding a new thread, this
 	implementation gets the effect of allocating a new structure,
 	but without actually having to do the allocation.
-} \QuickQuizEnd
 
-Lines~50-70 shows \co{count_unregister_thread()}, which is invoked
+	\begin{fcvref}[ln:count:count_end_rcu:whole:unreg]
+	On the other hand, \co{count_unregister_thread()} can result
+	in the outgoing thread's work being double counted.
+	This can happen when \co{read_count()} is invoked between
+	\clnref{add,null}.
+	There are efficient ways of avoiding this double-counting, but
+	these are left as an exercise for the reader.
+	\end{fcvref}
+}\QuickQuizEnd
+
+\begin{fcvref}[ln:count:count_end_rcu:whole:unreg]
+\Clnrefrange{b}{e} show \co{count_unregister_thread()}, which is invoked
 by each thread just before it exits.
-Lines~56-60 allocate a new \co{countarray} structure,
-line~61 acquires \co{final_mutex} and line~67 releases it.
-Line~62 copies the contents of the current \co{countarray} into
-the newly allocated version, line~63 adds the exiting thread's \co{counter}
-to new structure's \co{->total}, and line~64 \co{NULL}s the exiting thread's
+\Clnrefrange{alloc:b}{alloc:e} allocate a new \co{countarray} structure,
+\clnref{acq} acquires \co{final_mutex} and \clnref{rel} releases it.
+\Clnref{copy} copies the contents of the current \co{countarray} into
+the newly allocated version, \clnref{add} adds the exiting thread's \co{counter}
+to new structure's \co{->total}, and \clnref{null} \co{NULL}s the exiting thread's
 \co{counterp[]} array element.
-Line~65 then retains a pointer to the current (soon to be old)
-\co{countarray} structure, and line~66 uses \co{rcu_assign_pointer()}
+\Clnref{retain} then retains a pointer to the current (soon to be old)
+\co{countarray} structure, and \clnref{assign} uses \co{rcu_assign_pointer()}
 to install the new version of the \co{countarray} structure.
-Line~68 waits for a grace period to elapse, so that any threads that
+\Clnref{sync} waits for a grace period to elapse, so that any threads that
 might be concurrently executing in \co{read_count()}, and thus might
 have references to the old \co{countarray} structure, will be allowed
 to exit their RCU read-side critical sections, thus dropping any such
 references.
-Line~69 can then safely free the old \co{countarray} structure.
+\Clnref{free} can then safely free the old \co{countarray} structure.
+\end{fcvref}
+
+\QuickQuiz{
+	Given the fixed-size \co{counterp} array, exactly how does this
+	code avoid a fixed upper bound on the number of threads???
+}\QuickQuizAnswer{
+	You are quite right, that array does in fact reimpose the fixed
+	upper limit.
+	This limit may be avoided by tracking threads with a linked list,
+	as is done in userspace RCU~\cite{MathieuDesnoyers2012URCU}.
+	Doing something similar for this code is left as an exercise for
+	the reader.
+}\QuickQuizEnd
 
 \subsubsection{Discussion}
 
-\QuickQuiz{}
+\QuickQuiz{
 	Wow!
-	Figure~\ref{fig:together:RCU and Per-Thread Statistical Counters}
-	contains 69 lines of code, compared to only 42 in
-	Figure~\ref{fig:count:Per-Thread Statistical Counters}.
+	\cref{lst:together:RCU and Per-Thread Statistical Counters}
+	contains 70 lines of code, compared to only 42 in
+	\cref{lst:count:Per-Thread Statistical Counters}.
 	Is this extra complexity really worth it?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	This of course needs to be decided on a case-by-case basis.
 	If you need an implementation of \co{read_count()} that
 	scales linearly, then the lock-based implementation shown in
-	Figure~\ref{fig:count:Per-Thread Statistical Counters}
+	\cref{lst:count:Per-Thread Statistical Counters}
 	simply will not work for you.
-	On the other hand, if calls to \co{count_read()} are sufficiently
+	On the other hand, if calls to \co{read_count()} are sufficiently
 	rare, then the lock-based version is simpler and might thus be
 	better, although much of the size difference is due
 	to the structure definition, memory allocation, and \co{NULL}
@@ -300,11 +220,11 @@ Line~69 can then safely free the old \co{countarray} structure.
 	and the use of RCU unnecessary.
 	This would in turn enable an implementation that
 	was even simpler than the one shown in
-	Figure~\ref{fig:count:Per-Thread Statistical Counters}, but
+	\cref{lst:count:Per-Thread Statistical Counters}, but
 	with all the scalability and performance benefits of the
 	implementation shown in
-	Figure~\ref{fig:together:RCU and Per-Thread Statistical Counters}!
-} \QuickQuizEnd
+	\cref{lst:together:RCU and Per-Thread Statistical Counters}!
+}\QuickQuizEnd
 
 Use of RCU enables exiting threads to wait until other threads are
 guaranteed to be done using the exiting threads' \co{__thread} variables.
@@ -322,7 +242,7 @@ complexity seen by users of \co{__thread} variables.
 \subsection{RCU and Counters for Removable I/O Devices}
 \label{sec:together:RCU and Counters for Removable I/O Devices}
 
-Section~\ref{sec:count:Applying Specialized Parallel Counters}
+\Cref{sec:count:Applying Exact Limit Counters}
 showed a fanciful pair of code fragments for dealing with counting
 I/O accesses to removable devices.
 These code fragments suffered from high overhead on the fastpath
@@ -335,22 +255,18 @@ The code for performing an I/O is quite similar to the original, with
 an RCU read-side critical section being substituted for the reader-writer
 lock read-side critical section in the original:
 
-\vspace{5pt}
-\begin{minipage}[t]{\columnwidth}
-\small
-\begin{verbatim}
-  1 rcu_read_lock();
-  2 if (removing) {
-  3   rcu_read_unlock();
-  4   cancel_io();
-  5 } else {
-  6   add_count(1);
-  7   rcu_read_unlock();
-  8   do_io();
-  9   sub_count(1);
- 10 }
-\end{verbatim}
-\end{minipage}
+\begin{VerbatimN}[tabsize=8]
+rcu_read_lock();
+if (removing) {
+	rcu_read_unlock();
+	cancel_io();
+} else {
+	add_count(1);
+	rcu_read_unlock();
+	do_io();
+	sub_count(1);
+}
+\end{VerbatimN}
 \vspace{5pt}
 
 The RCU read-side primitives have minimal overhead, thus speeding up
@@ -358,57 +274,53 @@ the fastpath, as desired.
 
 The updated code fragment removing a device is as follows:
 
-\vspace{5pt}
-\begin{minipage}[t]{\columnwidth}
-\small
-\begin{verbatim}
-  1 spin_lock(&mylock);
-  2 removing = 1;
-  3 sub_count(mybias);
-  4 spin_unlock(&mylock);
-  5 synchronize_rcu();
-  6 while (read_count() != 0) {
-  7   poll(NULL, 0, 1);
-  8 }
-  9 remove_device();
-\end{verbatim}
-\end{minipage}
-\vspace{5pt}
+\begin{fcvlabel}[ln:together:applyrcu:Removing Device]
+\begin{VerbatimN}[tabsize=8,commandchars=\\\[\]]
+spin_lock(&mylock);
+removing = 1;
+sub_count(mybias);
+spin_unlock(&mylock);
+synchronize_rcu();
+while (read_count() != 0) {	\lnlbl[nextofsync]
+	poll(NULL, 0, 1);
+}
+remove_device();
+\end{VerbatimN}
+\end{fcvlabel}
 
+\begin{fcvref}[ln:together:applyrcu:Removing Device]
 Here we replace the reader-writer lock with an exclusive spinlock and
 add a \co{synchronize_rcu()} to wait for all of the RCU read-side
 critical sections to complete.
 Because of the \co{synchronize_rcu()},
-once we reach line~6, we know that all remaining I/Os have been accounted
-for.
+once we reach \clnref{nextofsync},
+we know that all remaining I/Os have been accounted for.
 
 Of course, the overhead of \co{synchronize_rcu()} can be large,
 but given that device removal is quite rare, this is usually a good
 tradeoff.
+\end{fcvref}
 
+\FloatBarrier
 \subsection{Array and Length}
 \label{sec:together:Array and Length}
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
- 1 struct foo {
- 2   int length;
- 3   char *a;
- 4 };
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{RCU-Protected Variable-Length Array}
-\label{fig:together:RCU-Protected Variable-Length Array}
-\end{figure}
-
 Suppose we have an RCU-protected variable-length array, as shown in
-Figure~\ref{fig:together:RCU-Protected Variable-Length Array}.
+\cref{lst:together:RCU-Protected Variable-Length Array}.
 The length of the array \co{->a[]} can change dynamically, and at any
 given time, its length is given by the field \co{->length}.
 Of course, this introduces the following race condition:
+
+\begin{listing}
+\begin{VerbatimL}[tabsize=8]
+struct foo {
+	int length;
+	char *a;
+};
+\end{VerbatimL}
+\caption{RCU-Protected Variable-Length Array}
+\label{lst:together:RCU-Protected Variable-Length Array}
+\end{listing}
 
 \begin{enumerate}
 \item	The array is initially 16 characters long, and thus \co{->length}
@@ -425,37 +337,32 @@ Of course, this introduces the following race condition:
 How can we prevent this?
 
 One approach is to make careful use of memory barriers, which are
-covered in Section~\ref{sec:advsync:Memory Barriers}.
+covered in \cref{chp:Advanced Synchronization: Memory Ordering}.
 This works, but incurs read-side overhead and, perhaps worse, requires
 use of explicit memory barriers.
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
- 1 struct foo_a {
- 2   int length;
- 3   char a[0];
- 4 };
- 5 
- 6 struct foo {
- 7   struct foo_a *fa;
- 8 };
-\end{verbbox}
-}
-\centering
-\theverbbox
+\begin{listing}
+\begin{VerbatimL}[tabsize=8]
+struct foo_a {
+	int length;
+	char a[0];
+};
+
+struct foo {
+	struct foo_a *fa;
+};
+\end{VerbatimL}
 \caption{Improved RCU-Protected Variable-Length Array}
-\label{fig:together:Improved RCU-Protected Variable-Length Array}
-\end{figure}
+\label{lst:together:Improved RCU-Protected Variable-Length Array}
+\end{listing}
 
 A better approach is to put the value and the array into the same structure,
 as shown in
-Figure~\ref{fig:together:Improved RCU-Protected Variable-Length Array}.
+\cref{lst:together:Improved RCU-Protected Variable-Length Array}~\cite{Arcangeli03}.
 Allocating a new array (\co{foo_a} structure) then automatically provides
 a new place for the array length.
 This means that if any CPU picks up a reference to \co{->fa}, it is
-guaranteed that the \co{->length} will match the \co{->a[]}
-length~\cite{Arcangeli03}.
+guaranteed that the \co{->length} will match the \co{->a[]}.
 
 \begin{enumerate}
 \item	The array is initially 16 characters long, and thus \co{->length}
@@ -479,29 +386,11 @@ A more general version of this approach is presented in the next section.
 
 \subsection{Correlated Fields}
 \label{sec:together:Correlated Fields}
-
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
- 1 struct animal {
- 2   char name[40];
- 3   double age;
- 4   double meas_1;
- 5   double meas_2;
- 6   double meas_3;
- 7   char photo[0]; /* large bitmap. */
- 8 };
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Uncorrelated Measurement Fields}
-\label{fig:together:Uncorrelated Measurement Fields}
-\end{figure}
+\OriginallyPublished{Section}{sec:together:Correlated Fields}{Correlated Fields}{Oregon Graduate Institute}{PaulEdwardMcKenneyPhD}
 
 Suppose that each of Sch\"odinger's animals is represented by the
 data element shown in
-Figure~\ref{fig:together:Uncorrelated Measurement Fields}.
+\cref{lst:together:Uncorrelated Measurement Fields}.
 The \co{meas_1}, \co{meas_2}, and \co{meas_3} fields are a set
 of correlated measurements that are updated periodically.
 It is critically important that readers see these three values from
@@ -509,7 +398,28 @@ a single measurement update: If a reader sees an old value of
 \co{meas_1} but new values of \co{meas_2} and \co{meas_3}, that
 reader will become fatally confused.
 How can we guarantee that readers will see coordinated sets of these
-three values?
+three values?\footnote{
+	This situation is similar to that described in
+	\cref{sec:together:Correlated Data Elements},
+	except that here readers need only see a consistent view of a
+	given single data element, not the consistent view of a
+	group of data elements that was required in that earlier
+	\lcnamecref{sec:together:Correlated Data Elements}.}
+
+\begin{listing}
+\begin{VerbatimL}[tabsize=8]
+struct animal {
+	char name[40];
+	double age;
+	double meas_1;
+	double meas_2;
+	double meas_3;
+	char photo[0]; /* large bitmap. */
+};
+\end{VerbatimL}
+\caption{Uncorrelated Measurement Fields}
+\label{lst:together:Uncorrelated Measurement Fields}
+\end{listing}
 
 One approach would be to allocate a new \co{animal} structure,
 copy the old structure into the new structure, update the new
@@ -521,31 +431,27 @@ measurement values, but it requires copying a large structure due
 to the \co{->photo[]} field.
 This copying might incur unacceptably large overhead.
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
- 1 struct measurement {
- 2   double meas_1;
- 3   double meas_2;
- 4   double meas_3;
- 5 };
- 6 
- 7 struct animal {
- 8   char name[40];
- 9   double age;
-10   struct measurement *mp;
-11   char photo[0]; /* large bitmap. */
-12 };
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Correlated Measurement Fields}
-\label{fig:together:Correlated Measurement Fields}
-\end{figure}
+\begin{listing}
+\begin{VerbatimL}[tabsize=8]
+struct measurement {
+	double meas_1;
+	double meas_2;
+	double meas_3;
+};
 
-Another approach is to insert a level of indirection, as shown in
-Figure~\ref{fig:together:Correlated Measurement Fields}.
+struct animal {
+	char name[40];
+	double age;
+	struct measurement *mp;
+	char photo[0]; /* large bitmap. */
+};
+\end{VerbatimL}
+\caption{Correlated Measurement Fields}
+\label{lst:together:Correlated Measurement Fields}
+\end{listing}
+
+Another approach is to impose a level of indirection, as shown in
+\cref{lst:together:Correlated Measurement Fields}~\cite[Section 5.3.4]{PaulEdwardMcKenneyPhD}.
 When a new measurement is taken, a new \co{measurement} structure
 is allocated, filled in with the measurements, and the \co{animal}
 structure's \co{->mp} field is updated to point to this new
@@ -553,40 +459,36 @@ structure's \co{->mp} field is updated to point to this new
 After a grace period elapses, the old \co{measurement} structure
 can be freed.
 
-\QuickQuiz{}
+\QuickQuiz{
 	But cant't the approach shown in
-	Figure~\ref{fig:together:Correlated Measurement Fields}
+	\cref{lst:together:Correlated Measurement Fields}
 	result in extra cache misses, in turn resulting in additional
 	read-side overhead?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Indeed it can.
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
- 1 struct measurement {
- 2   double meas_1;
- 3   double meas_2;
- 4   double meas_3;
- 5 };
- 6 
- 7 struct animal {
- 8   char name[40];
- 9   double age;
-10   struct measurement *mp;
-11   struct measurement meas;
-12   char photo[0]; /* large bitmap. */
-13 };
-\end{verbbox}
-}
-\centering
-\theverbbox
+\begin{listing}
+\begin{VerbatimL}[tabsize=8]
+struct measurement {
+	double meas_1;
+	double meas_2;
+	double meas_3;
+};
+
+struct animal {
+	char name[40];
+	double age;
+	struct measurement *mp;
+        struct measurement meas;
+	char photo[0]; /* large bitmap. */
+};
+\end{VerbatimL}
 \caption{Localized Correlated Measurement Fields}
-\label{fig:together:Localized Correlated Measurement Fields}
-\end{figure}
+\label{lst:together:Localized Correlated Measurement Fields}
+\end{listing}
 
 	One way to avoid this cache-miss overhead is shown in
-	Figure~\ref{fig:together:Localized Correlated Measurement Fields}:
+	\cref{lst:together:Localized Correlated Measurement Fields}:
 	Simply embed an instance of a \co{measurement} structure
 	named \co{meas}
 	into the \co{animal} structure, and point the \co{->mp}
@@ -613,12 +515,125 @@ can be freed.
 	the extra cache miss in the common case.
 	The extra cache miss will be incurred only while an update is
 	actually in progress.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 This approach enables readers to see correlated values for selected
-fields with minimal read-side overhead.
+fields, but while incurring minimal read-side overhead.
+This per-data-element consistency suffices in the common case where
+a reader looks only at a single data element.
 
-% Birthstone/tombstone for moving records when readers cannot be permitted
+% @@@ Birthstone/tombstone for moving records when readers cannot be permitted
 % to see extraneous records.
-
 % Flag for deletion (if not already covered in the defer chapter).
+% @@@ Issaquah Challenge.
+% @@@ RLU & MV-RLU (Eventually the corresponding patents.)
+
+\subsection{Update-Friendly Traversal}
+\label{sec:together:Update-Friendly Traversal}
+
+Suppose that a statistical scan of all elements in a hash table is
+required.
+For example, Schr\"odinger might wish to compute the average
+length-to-weight ratio over all of his animals.\footnote{
+	Why would such a quantity be useful?
+	Beats me!
+	But group statistics are often useful.}
+Suppose further that Schr\"odinger is willing to ignore slight
+errors due to animals being added to and removed from the hash
+table while this statistical scan is being carried out.
+What should Schr\"odinger do to control concurrency?
+
+One approach is to enclose the statistical scan in an RCU read-side
+critical section.
+This permits updates to proceed concurrently without unduly impeding
+the scan.
+In particular, the scan does not block the updates and vice versa,
+which allows scan of hash tables containing very large numbers of
+elements to be supported gracefully, even in the face of very high
+update rates.
+
+\QuickQuiz{
+	But how does this scan work while a resizable hash table
+	is being resized?
+	In that case, neither the old nor the new hash table is
+	guaranteed to contain all the elements in the hash table!
+}\QuickQuizAnswer{
+	True, resizable hash tables as described in
+	\cref{sec:datastruct:Non-Partitionable Data Structures}
+	cannot be fully scanned while being resized.
+	One simple way around this is to acquire the
+	\co{hashtab} structure's \co{->ht_lock} while scanning,
+	but this prevents more than one scan from proceeding
+	concurrently.
+
+	Another approach is for updates to mutate the old hash
+	table as well as the new one while resizing is in
+	progress.
+	This would allow scans to find all elements in the old
+	hash table.
+	Implementing this is left as an exercise for the reader.
+}\QuickQuizEnd
+
+\subsection{Scalable Reference Count Two}
+\label{sec:together:Scalable Reference Count Two}
+
+Suppose a reference count is becoming a performance or scalability
+bottleneck.
+What can you do?
+
+One approach is to use per-CPU counters for each reference count,
+somewhat similar to the algorithms in \cref{chp:Counting}, in particular,
+the exact limit counters described in
+\cref{sec:count:Exact Limit Counters}.
+The need to switch between per-CPU and global modes for these counters
+results either in expensive increments and decrements on the one hand
+(\cref{sec:count:Atomic Limit Counter Implementation})
+or in the use of POSIX signals on the other
+(\cref{sec:count:Signal-Theft Limit Counter Design}).
+
+Another approach is to use RCU to mediate the switch between per-CPU
+and global counting modes.
+Each update is carried out within an RCU read-side critical section,
+and each update checks a flag to determine whether to update the
+per-CPU counters on the one hand or the global on the other.
+To switch modes, update the flag, wait for a grace period, and then
+move any remaining counts from the per-CPU counters to the global
+counter or vice versa.
+
+The Linux kernel uses this RCU-mediated approach in its \co{percpu_ref}
+style of reference counter.
+Code using this reference counter must initialize the \co{percpu_ref}
+structure using \co{percpu_ref_init()}, which takes as arguments
+a pointer to the structure, a pointer to a function to invoke when
+the reference count reaches zero, a set of mode flags, and a set
+of \co{kmalloc()} \co{GFP_} flags.
+After normal initialization, the structure has one reference and
+is in per-CPU mode.
+
+The mode flags are usually zero, but can include the
+\co{PERCPU_REF_INIT_ATOMIC} bit if the counter is to start in slow
+non-per-CPU (that is, atomic) mode.
+There is also a \co{PERCPU_REF_ALLOW_REINIT} bit that allows
+a given \co{percpu_ref} counter to be reused via a call to
+\co{percpu_ref_reinit()} without needing to be freed and reallocated.
+Regardless of how the \co{percpu_ref} structure is initialized,
+\co{percpu_ref_get()} may be used to acquire a reference and
+\co{percpu_ref_put()} may be used to release a reference.
+
+When in per-CPU mode, the \co{percpu_ref} structure cannot determine whether
+or not its value has reached zero.
+When such a determination is necessary, \co{percpu_ref_kill()} may
+be invoked.
+This function switches the structure into atomic mode and removes the
+initial reference installed by the call to \co{percpu_ref_init()}.
+Of course, when in atomic mode, calls to \co{percpu_ref_get()} and
+\co{percpu_ref_put()} are quite expensive, but \co{percpu_ref_put()}
+can tell when the value reaches zero.
+
+Readers desiring more \co{percpu_ref} information are referred to
+the Linux-kernel documentation and source code.
+
+% @@@ RCU link counts
+% @@@ Minimize memory footprint, for example, SRCU.
+% @@@ Dealing with too-long readers.  Drop anchor, use refcnt, shard
+% @@@	the list, use iterator that takes one of these approaches, ...

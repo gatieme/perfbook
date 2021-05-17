@@ -35,7 +35,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2008 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2008-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include "../api.h"
@@ -56,5 +57,5 @@ int main(int argc, char *argv[])
 			printf(" %lld", ts[i] - ts[i - 1]);
 		printf("\n");
 	}
-	exit(0);
+	return EXIT_SUCCESS;
 }

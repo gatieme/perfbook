@@ -17,7 +17,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2009 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2009-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include "../api.h"
@@ -129,15 +130,21 @@ void deq_push_r(struct cds_list_head *e, struct deq *p)
 
 #define PDEQ_N_BKTS 4
 
+//\begin{snippet}[labelbase=ln:SMPdesign:lockhdeq:struct_pdeq,commandchars=\\\@\$]
 struct pdeq {
-	spinlock_t llock;
-	int lidx;
+	spinlock_t llock;				//\lnlbl{llock}
+	int lidx;					//\lnlbl{lidx}
 	/* char pad1[CACHE_LINE_SIZE - sizeof(spinlock_t) - sizeof(int)]; */
+#ifndef FCV_SNIPPET
 	spinlock_t rlock ____cacheline_internodealigned_in_smp;
-	int ridx;
+#else /* FCV_SNIPPET */
+	spinlock_t rlock;				//\lnlbl{rlock}
+#endif /* FCV_SNIPPET */
+	int ridx;					//\lnlbl{ridx}
 	/* char pad2[CACHE_LINE_SIZE - sizeof(spinlock_t) - sizeof(int)]; */
-	struct deq bkt[PDEQ_N_BKTS];
+	struct deq bkt[PDEQ_N_BKTS];			//\lnlbl{bkt}
 };
+//\end{snippet}
 
 static int moveleft(int idx)
 {
@@ -161,19 +168,20 @@ void init_pdeq(struct pdeq *d)
 		init_deq(&d->bkt[i]);
 }
 
-struct cds_list_head *pdeq_pop_l(struct pdeq *d)
+//\begin{snippet}[labelbase=ln:SMPdesign:lockhdeq:pop_push,commandchars=\\\@\$]
+struct cds_list_head *pdeq_pop_l(struct pdeq *d)//\lnlbl{popl:b}
 {
 	struct cds_list_head *e;
 	int i;
 
-	spin_lock(&d->llock);
-	i = moveright(d->lidx);
-	e = deq_pop_l(&d->bkt[i]);
-	if (e != NULL)
-		d->lidx = i;
-	spin_unlock(&d->llock);
-	return e;
-}
+	spin_lock(&d->llock);			//\lnlbl{popl:acq}
+	i = moveright(d->lidx);			//\lnlbl{popl:idx}
+	e = deq_pop_l(&d->bkt[i]);		//\lnlbl{popl:deque}
+	if (e != NULL)				//\lnlbl{popl:check}
+		d->lidx = i;			//\lnlbl{popl:record}
+	spin_unlock(&d->llock);			//\lnlbl{popl:rel}
+	return e;				//\lnlbl{popl:return}
+}						//\lnlbl{popl:e}
 
 struct cds_list_head *pdeq_pop_r(struct pdeq *d)
 {
@@ -189,16 +197,16 @@ struct cds_list_head *pdeq_pop_r(struct pdeq *d)
 	return e;
 }
 
-void pdeq_push_l(struct cds_list_head *e, struct pdeq *d)
+void pdeq_push_l(struct cds_list_head *e, struct pdeq *d)//\lnlbl{pushl:b}
 {
 	int i;
 
-	spin_lock(&d->llock);
-	i = d->lidx;
-	deq_push_l(e, &d->bkt[i]);
-	d->lidx = moveleft(d->lidx);
-	spin_unlock(&d->llock);
-}
+	spin_lock(&d->llock);				//\lnlbl{pushl:acq}
+	i = d->lidx;					//\lnlbl{pushl:idx}
+	deq_push_l(e, &d->bkt[i]);			//\lnlbl{pushl:enque}
+	d->lidx = moveleft(d->lidx);			//\lnlbl{pushl:update}
+	spin_unlock(&d->llock);				//\lnlbl{pushl:rel}
+}							//\lnlbl{pushl:e}
 
 void pdeq_push_r(struct cds_list_head *e, struct pdeq *d)
 {
@@ -210,6 +218,7 @@ void pdeq_push_r(struct cds_list_head *e, struct pdeq *d)
 	d->ridx = moveright(d->ridx);
 	spin_unlock(&d->rlock);
 }
+//\end{snippet}
 
 #ifdef TEST
 #define DEQ_AND_PDEQ

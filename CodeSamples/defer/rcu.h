@@ -15,15 +15,18 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2008 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2008-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include "rcu_pointer.h"
 
+//\begin{snippet}[labelbase=ln:defer:rcu:define,commandchars=\%\@\$]
 DEFINE_SPINLOCK(rcu_gp_lock);
 long rcu_gp_ctr = 0;	/* always even, +=2 at start of each grace period. */
 DEFINE_PER_THREAD(long, rcu_reader_gp);
 DEFINE_PER_THREAD(long, rcu_reader_gp_snap);
+//\end{snippet}
 
 static inline void rcu_init(void)
 {
@@ -31,7 +34,8 @@ static inline void rcu_init(void)
 	init_per_thread(rcu_reader_gp_snap, 0);
 }
 
-static inline void rcu_read_lock(void)
+//\begin{snippet}[labelbase=ln:defer:rcu:read_lock_unlock,gobbleblank=yes,commandchars=\%\@\$]
+static inline void rcu_read_lock(void)			//\lnlbl{lock:b}
 {
 	/*
 	 * Copy the current GP counter to this thread's counter, setting
@@ -41,11 +45,12 @@ static inline void rcu_read_lock(void)
 	 * periodic per-thread processing.)
 	 */
 
-	__get_thread_var(rcu_reader_gp) = rcu_gp_ctr + 1;
-	smp_mb();
-}
-
-static inline void rcu_read_unlock(void)
+	__get_thread_var(rcu_reader_gp) =		//\lnlbl{lock:gp1}
+		READ_ONCE(rcu_gp_ctr) + 1;		//\lnlbl{lock:gp2}
+	smp_mb();					//\lnlbl{lock:mb}
+}							//\lnlbl{lock:e}
+								//\fcvblank
+static inline void rcu_read_unlock(void)		//\lnlbl{unlock:b}
 {
 	/*
 	 * Copy the current GP counter to this thread's counter, but
@@ -54,8 +59,11 @@ static inline void rcu_read_unlock(void)
 	 * the memory barrier requires periodic per-thread processing.)
 	 */
 
-	smp_mb();
-	__get_thread_var(rcu_reader_gp) = rcu_gp_ctr;
+	smp_mb();					//\lnlbl{unlock:mb}
+	__get_thread_var(rcu_reader_gp) =		//\lnlbl{unlock:gp1}
+		READ_ONCE(rcu_gp_ctr);			//\lnlbl{unlock:gp2}
 }
+								//\fcvblank
+//\end{snippet}
 
 extern void synchronize_rcu(void);

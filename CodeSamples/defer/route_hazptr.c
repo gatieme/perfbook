@@ -16,29 +16,31 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2016 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2016-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include "../api.h"
 #include "hazptr.h"
 
 /* Route-table entry to be included in the routing list. */
+//\begin{snippet}[labelbase=ln:defer:route_hazptr:lookup,commandchars=\\\@\$]
 struct route_entry {
-	struct hazptr_head hh;
+	struct hazptr_head hh;				//\lnlbl{hh}
 	struct route_entry *re_next;
 	unsigned long addr;
 	unsigned long iface;
-	int re_freed;
+	int re_freed;					//\lnlbl{re_freed}
 };
-
+								//\fcvexclude
 struct route_entry route_list;
 DEFINE_SPINLOCK(routelock);
-
+								//\fcvexclude
 /* This thread's fixed-sized set of hazard pointers. */
 hazard_pointer __thread *my_hazptr;
 
 /*
- * Look up a route entry, return the corresponding interface. 
+ * Look up a route entry, return the corresponding interface.
  */
 unsigned long route_lookup(unsigned long addr)
 {
@@ -46,35 +48,26 @@ unsigned long route_lookup(unsigned long addr)
 	struct route_entry *rep;
 	struct route_entry **repp;
 
-retry:
+retry:							//\lnlbl{retry}
 	repp = &route_list.re_next;
 	do {
-		rep = READ_ONCE(*repp);
-		if (rep == NULL)
-			return ULONG_MAX;
-		if (rep == (struct route_entry *)HAZPTR_POISON)
-			goto retry; /* element deleted. */
-
-		/* Store a hazard pointer. */
-		my_hazptr[offset].p = &rep->hh;
-		offset = !offset;
-		smp_mb(); /* Force pointer loads in order. */
-
-		/* Recheck the hazard pointer against the original. */
-		if (READ_ONCE(*repp) != rep)
-			goto retry;
-
-		/* Advance to next. */
+		rep = hp_try_record(repp, &my_hazptr[offset]);	//\lnlbl{tryrecord}
+		if (!rep)
+			return ULONG_MAX;			//\lnlbl{NULL}
+		if ((uintptr_t)rep == HAZPTR_POISON)
+			goto retry; /* element deleted. */	//\lnlbl{deleted}
 		repp = &rep->re_next;
 	} while (rep->addr != addr);
 	if (READ_ONCE(rep->re_freed))
-		abort();
+		abort();					//\lnlbl{abort}
 	return rep->iface;
 }
+//\end{snippet}
 
 /*
  * Add an element to the route table.
  */
+//\begin{snippet}[labelbase=ln:defer:route_hazptr:add_del,commandchars=\\\[\]]
 int route_add(unsigned long addr, unsigned long interface)
 {
 	struct route_entry *rep;
@@ -84,7 +77,7 @@ int route_add(unsigned long addr, unsigned long interface)
 		return -ENOMEM;
 	rep->addr = addr;
 	rep->iface = interface;
-	rep->re_freed = 0;
+	rep->re_freed = 0;				//\lnlbl{init_freed}
 	spin_lock(&routelock);
 	rep->re_next = route_list.re_next;
 	route_list.re_next = rep;
@@ -108,9 +101,9 @@ int route_del(unsigned long addr)
 			break;
 		if (rep->addr == addr) {
 			*repp = rep->re_next;
-			rep->re_next = (struct route_entry *)HAZPTR_POISON;
+			rep->re_next = (struct route_entry *)HAZPTR_POISON; //\lnlbl{poison}
 			spin_unlock(&routelock);
-			hazptr_free_later(&rep->hh);
+			hazptr_free_later(&rep->hh);	//\lnlbl{free_later}
 			return 0;
 		}
 		repp = &rep->re_next;
@@ -118,6 +111,7 @@ int route_del(unsigned long addr)
 	spin_unlock(&routelock);
 	return -ENOENT;
 }
+//\end{snippet}
 
 /*
  * Clear all elements from the route table.

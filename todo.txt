@@ -1,16 +1,43 @@
-o	https://lwn.net/Articles/667593/ to QC futures.  Plus
-	https://lwn.net/Articles/667720/.
+o	Julia language as parallel panacea?  https://julialang.org/ and
+	https://en.wikipedia.org/wiki/Julia_(programming_language
 
-	Also "Quantum Volume":
-	https://phys.org/news/2017-05-ibm-powerful-universal-quantum-processors.html
-	https://dal.objectstorage.open.softlayer.com/v1/AUTH_039c3bf6e6e54d76b8e66152e2f87877/community-documents/quatnum-volumehp08co1vbo0cc8fr.pdf
+@@@
+
+o	Add a section on RCU design tradeoffs, perhaps extend to
+	cover hazard pointers and sequence locking.  Work with Joel
+	on this item.
+
+	o	QSBR vs. rcu_read_lock() actually doing something.
+
+		o	Counter-based methods.
+
+		o	Time-based methods.
+
+	o	Encourage holdout readers?
+
+		o	resched_cpu()
+
+		o	Preemption disabling.
+
+		o	Priority boosting.
+
+		o	Enable help from preemption points and
+			might-sleep calls.
+
+	o	Special cases for single-CPU non-preemptible situations.
+
+o	Complex data structures:
+
+	o	Just wrap the update in sequence locking.
+
+	o	Issaquah Challenge.
+
+	o	Jon Walpole's and my algorithms (and recent rediscovery).
 
 o	Consider adding kfifo to NBS section.  Perhaps also
 	atomic queues and stacks.  Reference hazard pointers.
 
-o	Update Test/perf.gpl set of tests for atomic operations and
-	cache-line movement and add to CodeSamples/cpu, then rerun
-	this to create a new table of atomic operations.
+	LIFO push stack, definitely!!! [DONE]
 
 o	Single writer principle.  Mechanical sympathy.
 	("Disruptor" presentation at LCA2013.)
@@ -31,9 +58,6 @@ o	In intro/intro.tex in the "Use Existing Parallel Software"
 	section, add citations for web-application serving and
 	map-reduce.
 
-o	Reorganize memory-ordering introduction with Michel Dagenais's
-	feedback in mind.  See email dated August 20, 2012.
-
 o	Consider refactoring test code in CodeSamples directory tree.
 	Probably some opportunity for common measurement code and
 	also common argument-parsing code.
@@ -43,18 +67,14 @@ o	Add discussion of reader-writer locking to the locking chapter
 	unfair locks (and reasons for them), forward reference to
 	seqlock, RCU lock, and barrier lock.
 
-o	Consider a barrier section in defer chapter.
+o	Consider an HPC-style barrier section in defer chapter.
 
 o	Consider expanding on dequeue discussion, especially on queues,
 	in data-structures chapter (e.g., limits of ordering guarantees).
 	Need hash tables there, of course!
 
-o	Add the various livejournal posts on memory order, especially
-	the one on transitivity.  Consider also adding Will Deacon's
-	January 6 2011 QoS story.
-
 o	Data-race detection [Bart Van Assche January 2010]
-	Helgrind, DRD, ThreadSanitizer, Intel Thread Checker,
+	KCSAN, Helgrind, DRD, ThreadSanitizer, Intel Thread Checker,
 	Intel Parallel Studio, DIOTA, ...
 
 	Valgrind-based tools allow suppression patterns that
@@ -67,8 +87,6 @@ o	Data-race detection [Bart Van Assche January 2010]
 		instrumentation, optimization and transformation
 		of applications*. In Proceedings of WBT-2002,
 		Charlottesville, Virginia, USA, September 2002.
-
-o	Expant SAT-solver section with recent experience.
 
 o	Consider adding discussion of Amdahl's Law and Gustafson's
 	Law to the introduction.  [Kay Muller]
@@ -126,20 +144,6 @@ o	Add section to intro/hwhabits.tex giving intuitive notion of
 	instructions expensive.  Draw from URochester slide set
 	(in paper/scalability/TR-TMeval or thereabouts).
 
-	Move intro/hwhabits.tex to cpu/.  Add sections with increasingly
-	detailed pictures of what a CPU does, including speed-of-light
-	round-trip time (~3 cm, or a bit more than an inch) at 5GHz.
-	3D fabrication might help, but watch the fabrication cost and
-	the heat dissipation!!!  Also, electrons travel from 3-30 times
-	more slowly in silicon than light does in a vacuum, and even
-	more slowly if there are levels of clocked logic in the way.
-
-	Include actual numbers/graphs from real machines.  Show effects
-	of various forms of misbehavior.
-
-o	Add more terms to vocabulary.  More TM stuff, for example.
-	Also RCU nomenclature [done].
-
 o	Find Herlihy's topology-analogy stuff and add hints to the
 	formal-methods section.
 
@@ -153,7 +157,7 @@ o	Fill out material.
 	o	Add material from "is parallel programming hard" position
 		paper.  (After publication.)
 
-	o	Pull in material from LJ2003 RCU and dissertation
+	x	Pull in material from LJ2003 RCU and dissertation
 		demonstrating locking performance issues.
 
 	o	Need citation for Matlab*p.
@@ -163,10 +167,10 @@ o	Fill out material.
 
 	x	Add stuff from differential profiling paper.
 
-	o	Memory barriers -- get principles lined out, then show
+	x	Memory barriers -- get principles lined out, then show
 		"bookend" implementations.
 
-	o	Add appendix with mathematics for hard realtime response
+	x	Add appendix with mathematics for hard realtime response
 		using locks.  Or just cite Bjoern Brandenberg's dissertation.
 
 	x	Create code examples for SMPdesign stuff, fill out
@@ -177,14 +181,14 @@ o	Fill out material.
 
 	x	Refocus the SMPdesign chapter to partitioning.
 
-	o	Fill out RCU patterns, also corresponding code and
+	x	Fill out RCU patterns, also corresponding code and
 		performance summary.
 
-		o	RCU and atomic list movement (Josh?)
+		x	RCU and atomic list movement (Josh?)
 
-		o	RCU and reference counts
+		x	RCU and reference counts
 
-		o	Converting rwlocks to RCU
+		x	Converting rwlocks to RCU
 
 	x	Consider adding history of RCU from OSR paper (low priority)
 
@@ -197,9 +201,6 @@ o	Fill out material.
 		(Windows apparently does not.)
 
 	x	Finish whymemorybarriers.tex
-
-o	Add Makefile (and comments) to CodeSamples directories.
-	(defer and SMPdesign done.)
 
 o	Come up with suitable API for example code, so that a single
 	program can be used for each example, covering the pthreads,
@@ -218,6 +219,10 @@ o	Come up with suitable API for example code, so that a single
 	Clearly Java will need its own code.
 
 ------------------------------------------------------------------------
+
+x	Add the various livejournal posts on memory order, especially
+	the one on transitivity.  Consider also adding Will Deacon's
+	January 6 2011 QoS story.
 
 x	Fix the references in defer/rcu*.tex to "green" and "red" cells
 	in the various tables.  Change to refer to the symbols actually
@@ -569,6 +574,35 @@ X	RCU implementations appendix:
 
 	o	Crisply present advantages and disadvantages of
 		RCU in defer chapter.
+
+x	https://lwn.net/Articles/667593/ to QC futures.  Plus
+	https://lwn.net/Articles/667720/.
+
+x	Expant SAT-solver section with recent experience.
+
+x	Move intro/hwhabits.tex to cpu/.  Add sections with increasingly
+	detailed pictures of what a CPU does, including speed-of-light
+	round-trip time (~3 cm, or a bit more than an inch) at 5GHz.
+	3D fabrication might help, but watch the fabrication cost and
+	the heat dissipation!!!  Also, electrons travel from 3-30 times
+	more slowly in silicon than light does in a vacuum, and even
+	more slowly if there are levels of clocked logic in the way.
+
+	Include actual numbers/graphs from real machines.  Show effects
+	of various forms of misbehavior.
+
+x	Add Makefile (and comments) to CodeSamples directories.
+	(defer and SMPdesign done.)
+
+x	Update Test/perf.gpl set of tests for atomic operations and
+	cache-line movement and add to CodeSamples/cpu, then rerun
+	this to create a new table of atomic operations.
+
+X	Reorganize memory-ordering introduction with Michel Dagenais's
+	feedback in mind.  See email dated August 20, 2012.
+
+x	Add more terms to vocabulary.  More TM stuff, for example.
+	Also RCU nomenclature [done].
 
 ------------------------------------------------------------------------
 

@@ -1,6 +1,12 @@
 % appendix/whymb/whymemorybarriers.tex
+% mainfile: ../../perfbook.tex
+% SPDX-License-Identifier: CC-BY-SA-3.0
 
-\QuickQuizChapter{chp:app:whymb:Why Memory Barriers?}{Why Memory Barriers?}
+\QuickQuizChapter{chp:app:whymb:Why Memory Barriers?}{Why Memory Barriers?}{qqzwhymb}
+%
+\Epigraph{Order!
+	  Order in the court!}
+	 {\emph{Unknown}}
 
 So what possessed CPU designers to cause them to inflict memory barriers
 on poor unsuspecting SMP software designers?
@@ -36,7 +42,7 @@ main memory.
 This disparity in speed---more than two orders of magnitude---has
 resulted in the multi-megabyte caches found on modern CPUs.
 These caches are associated with the CPUs as shown in
-Figure~\ref{fig:app:whymb:Modern Computer System Cache Structure},
+\cref{fig:app:whymb:Modern Computer System Cache Structure},
 and can typically be accessed in a few cycles.\footnote{
 	It is standard practice to use multiple levels of cache,
 	with a small level-one cache close to the CPU with
@@ -45,7 +51,7 @@ and can typically be accessed in a few cycles.\footnote{
 	Higher-performance CPUs often have three or even four levels
 	of cache.}
 
-\begin{figure}[htb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{appendix/whymb/cacheSC}}
 \caption{Modern Computer System Cache Structure}
@@ -53,7 +59,7 @@ and can typically be accessed in a few cycles.\footnote{
 \end{figure}
 
 Data flows among the CPUs' caches and memory in fixed-length blocks
-called ``cache lines'', which are normally a power of two in size,
+called ``\IXpl{cache line}'', which are normally a power of two in size,
 ranging from 16 to 256 bytes.
 When a given data item is first accessed by a given CPU, it will
 be absent from that CPU's cache, meaning that a ``cache miss''
@@ -69,14 +75,15 @@ at full speed.
 After some time, the CPU's cache will fill, and subsequent
 misses will likely need to eject an item from the cache in order
 to make room for the newly fetched item.
-Such a cache miss is termed a ``capacity miss'', because it is caused
+Such a cache miss is termed a ``\IXalth{capacity miss}
+{capacity}{cache miss}'', because it is caused
 by the cache's limited capacity.
 However, most caches can be forced to eject an old item to make room
 for a new item even when they are not yet full.
 This is due to the fact that large caches are implemented as hardware
 hash tables with fixed-size hash buckets (or ``sets'', as CPU designers
 call them) and no chaining, as shown in
-Figure~\ref{fig:app:whymb:CPU Cache Structure}.
+\cref{fig:app:whymb:CPU Cache Structure}.
 
 This cache has sixteen ``sets'' and two ``ways'' for a total of 32
 ``lines'', each entry containing a single 256-byte ``cache line'',
@@ -87,12 +94,14 @@ In hardware parlance, this is a two-way set-associative cache, and
 is analogous to a software hash table with
 sixteen buckets, where each bucket's hash chain is limited to
 at most two elements.
-The size (32 cache lines in this case) and the associativity (two in
-this case) are collectively called the cache's ``geometry''.
+The size (32 cache lines in this case) and the
+\IXalt{associativity}{cache associativity} (two in
+this case) are collectively called the cache's
+``\IXalt{geometry}{cache geometry}''.
 Since this cache is implemented in hardware, the hash function is
 extremely simple: extract four bits from the memory address.
 
-\begin{figure}[t]
+\begin{figure}
 \centering
 \small
 \begin{picture}(170,170)(0,0)
@@ -161,7 +170,7 @@ extremely simple: extract four bits from the memory address.
 \label{fig:app:whymb:CPU Cache Structure}
 \end{figure}
 
-In Figure~\ref{fig:app:whymb:CPU Cache Structure},
+In \cref{fig:app:whymb:CPU Cache Structure},
 each box corresponds to a cache entry, which
 can contain a 256-byte cache line.
 However, a cache entry can be empty, as indicated by the empty boxes
@@ -175,7 +184,7 @@ four bits match the hash line number.
 
 The situation depicted in the figure might arise if the program's code
 were located at address 0x43210E00 through 0x43210EFF, and this program
-accessed data sequentially from 0x12345000 through 0x12345EFF.
+accessed data sequentially from 0x12345000 through 0x12345EFF\@.
 Suppose that the program were now to access location 0x12345F00.
 This location hashes to line 0xF, and both ways of this line are
 empty, so the corresponding 256-byte line can be accommodated.
@@ -186,7 +195,8 @@ However, if the program were to access location 0x1233E00, which hashes
 to line 0xE, one of the existing lines must be ejected from the cache
 to make room for the new cache line.
 If this ejected line were accessed later, a cache miss would result.
-Such a cache miss is termed an ``associativity miss''.
+Such a cache miss is termed an ``\IXalth{associativity miss}
+{associativity}{cache miss}''.
 
 Thus far, we have been considering only cases where a CPU reads
 a data item.
@@ -197,14 +207,15 @@ cause it to be removed, or ``invalidated'', from other CPUs' caches.
 Once this invalidation has completed, the CPU may safely modify the
 data item.
 If the data item was present in this CPU's cache, but was read-only,
-this process is termed a ``write miss''.
+this process is termed a ``\IXalth{write miss}{write}{cache miss}''.
 Once a given CPU has completed invalidating a given data item from other
 CPUs' caches, that CPU may repeatedly write (and read) that data item.
 
 Later, if one of the other CPUs attempts to access the data item, it
 will incur a cache miss, this time because the first CPU invalidated
 the item in order to write to it.
-This type of cache miss is termed a ``communication miss'', since it
+This type of cache miss is termed a ``\IXalth{communication miss}
+{communication}{cache miss}'', since it
 is usually due to several CPUs using the data items to communicate
 (for example, a lock is a data item that is used to communicate among
 CPUs using a mutual-exclusion algorithm).
@@ -221,7 +232,7 @@ described in the next section.
 \section{Cache-Coherence Protocols}
 \label{sec:app:whymb:Cache-Coherence Protocols}
 
-Cache-coherency protocols manage cache-line states so as to prevent
+\IXpl{Cache-coherence protocol} manage cache-line states so as to prevent
 inconsistent or lost data.
 These protocols can be quite complex, with many tens
 of states,\footnote{
@@ -230,7 +241,7 @@ of states,\footnote{
 	and Sequent (now IBM) NUMA-Q, respectively.
 	Both diagrams are significantly simpler than real life.}
 but for our purposes we need only concern ourselves with the
-four-state MESI cache-coherence protocol.
+four-state \IXaltr{MESI cache-coherence protocol}{MESI protocol}.
 
 \subsection{MESI States}
 \label{sec:app:whymb:MESI States}
@@ -246,7 +257,7 @@ A line in the ``modified'' state has been subject to a recent memory store
 from the corresponding CPU, and the corresponding memory is guaranteed
 not to appear in any other CPU's cache.
 Cache lines in the ``modified'' state can thus be said to be ``owned''
-by the CPU.
+by the CPU\@.
 Because this cache holds the only up-to-date copy of the data, this
 cache is ultimately responsible for either writing it back to memory
 or handing it off to some other cache, and must do so before reusing
@@ -258,10 +269,10 @@ modified by the corresponding CPU, which in turn means that the
 copy of the cache line's data that resides in memory is up-to-date.
 However, since the CPU can store to this line at any time, without
 consulting other CPUs, a line in the ``exclusive'' state can still
-be said to be owned by the corresponding CPU.
+be said to be owned by the corresponding CPU\@.
 That said, because the corresponding value in memory is up to date,
 this cache can discard this data without writing it back to memory
-or handing it off to some other CPU.
+or handing it off to some other CPU\@.
 
 A line in the ``shared'' state might be replicated in at least
 one other CPU's cache, so that this CPU is not permitted to store
@@ -269,7 +280,7 @@ to the line without first consulting with other CPUs.
 As with the ``exclusive'' state, because the corresponding value
 in memory is up to date,
 this cache can discard this data without writing it back to memory
-or handing it off to some other CPU.
+or handing it off to some other CPU\@.
 
 A line in the ``invalid'' state is empty, in other words, it holds
 no data.
@@ -326,10 +337,10 @@ If the CPUs are on a single shared bus, the following messages suffice:
 	state as needed to make room for other data.
 \end{description}
 
-\QuickQuiz{}
+\QuickQuiz{
 	Where does a writeback message originate from and where does
 	it go to?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	The writeback message originates from a given CPU, or in some
 	designs from a given level of a given CPU's cache---or even
 	from a cache that might be shared among several CPUs.
@@ -361,7 +372,7 @@ If the CPUs are on a single shared bus, the following messages suffice:
 	In short, a writeback message is sent from some part of the
 	system that is short of space, and is received by some other
 	part of the system that can accommodate the data.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 Interestingly enough, a shared-memory multiprocessor system really
 is a message-passing computer under the covers.
@@ -369,57 +380,64 @@ This means that clusters of SMP machines that use distributed shared memory
 are using message passing to implement shared memory at two different
 levels of the system architecture.
 
-\QuickQuiz{}
+\QuickQuizSeries{%
+\QuickQuizB{
 	What happens if two CPUs attempt to invalidate the
 	same cache line concurrently?
-\QuickQuizAnswer{
+}\QuickQuizAnswerB{
 	One of the CPUs gains access
 	to the shared bus first,
 	and that CPU ``wins''.  The other CPU must invalidate its copy of the
 	cache line and transmit an ``invalidate acknowledge'' message
-	to the other CPU. \\
+	to the other CPU\@.
+
 	Of course, the losing CPU can be expected to immediately issue a
 	``read invalidate'' transaction, so the winning CPU's victory will
 	be quite ephemeral.
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndB
+%
+\QuickQuizM{
 	When an ``invalidate'' message appears in a large multiprocessor,
 	every CPU must give an ``invalidate acknowledge'' response.
 	Wouldn't the resulting ``storm'' of ``invalidate acknowledge''
 	responses totally saturate the system bus?
-\QuickQuizAnswer{
+}\QuickQuizAnswerM{
 	It might, if large-scale multiprocessors were in fact implemented
-	that way.  Larger multiprocessors, particularly NUMA machines,
+	that way.
+	Larger multiprocessors, particularly NUMA machines,
 	tend to use so-called ``directory-based'' cache-coherence
 	protocols to avoid this and other problems.
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndM
+%
+\QuickQuizE{
 	If SMP machines are really using message passing
 	anyway, why bother with SMP at all?
-\QuickQuizAnswer{
+}\QuickQuizAnswerE{
 	There has been quite a bit of controversy on this topic over
-	the past few decades.  One answer is that the cache-coherence
+	the past few decades.
+	One answer is that the cache-coherence
 	protocols are quite simple, and therefore can be implemented
 	directly in hardware, gaining bandwidths and latencies
-	unattainable by software message passing.  Another answer is that
+	unattainable by software message passing.
+	Another answer is that
 	the real truth is to be found in economics due to the relative
 	prices of large SMP machines and that of clusters of smaller
-	SMP machines.  A third answer is that the SMP programming
-	model is easier to use than that of distributed systems, but
-	a rebuttal might note the appearance of HPC clusters and MPI.
+	SMP machines.
+	A third answer is that the SMP programming model is easier to
+	use than that of distributed systems, but a rebuttal might note
+	the appearance of HPC clusters and MPI\@.
 	And so the argument continues.
-} \QuickQuizEnd
+}\QuickQuizEndE
+}
 
 \subsection{MESI State Diagram}
 \label{sec:app:whymb:MESI State Diagram}
 
 A given cache line's state changes
 as protocol messages are sent and received, as
-shown in Figure~\ref{fig:app:whymb:MESI Cache-Coherency State Diagram}.
+shown in \cref{fig:app:whymb:MESI Cache-Coherency State Diagram}.
 
-\begin{figure}[htb]
+\begin{figure}
 \centering
 % \resizebox{3in}{!}{\includegraphics{appendix/whymb/MESI}}
 \includegraphics{appendix/whymb/MESI}
@@ -446,7 +464,7 @@ The transition arcs in this figure are as follows:
 	both sending the data to the requesting CPU and indicating
 	that it no longer has a local copy.
 \item	[Transition (d):]
-	The CPU does an atomic read-modify-write operation on a data item
+	The CPU does an \IX{atomic read-modify-write operation} on a data item
 	that was not present in its cache.
 	It transmits a ``read invalidate'', receiving the data via
 	a ``read response''.
@@ -511,10 +529,10 @@ The transition arcs in this figure are as follows:
 	an ``invalidate acknowledge'' message.
 \end{description}
 
-\QuickQuiz{}
+\QuickQuiz{
 	How does the hardware handle the delayed transitions
 	described above?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Usually by adding additional states, though these additional
 	states need not be actually stored with the cache line, due to
 	the fact that only a few lines at a time will be transitioning.
@@ -523,16 +541,16 @@ The transition arcs in this figure are as follows:
 	the over-simplified MESI protocol described in this appendix.
 	Hennessy and Patterson's classic introduction to computer
 	architecture~\cite{Hennessy95a} covers many of these issues.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 \subsection{MESI Protocol Example}
 \label{sec:app:whymb:MESI Protocol Example}
 
 Let's now look at this from the perspective of a cache line's worth
 of data, initially residing in memory at address~0,
-as it travels through the various single-line direct-mapped caches
+as it travels through the various single-line \IXhpl{direct-mapped}{cache}
 in a four-CPU system.
-Table~\ref{tab:app:whymb:Cache Coherence Example}
+\Cref{tab:app:whymb:Cache Coherence Example}
 shows this flow of data, with the first column showing the sequence
 of operations, the second the CPU performing the operation,
 the third the operation being performed, the next four the state
@@ -565,29 +583,25 @@ Finally, CPU~1 reads the cache line at address~8, which uses a
 \begin{table*}
 \small
 \centering
-\begin{tabular}{r|c|l||c|c|c|c||c|c}
-	& & & \multicolumn{4}{c||}{CPU Cache} & \multicolumn{2}{c}{Memory} \\
-	\cline{4-7}
+\renewcommand*{\arraystretch}{1.2}
+\rowcolors{6}{}{lightgray}
+\begin{tabular}{rclcccccc}
+	\toprule
+	& & & \multicolumn{4}{c}{CPU Cache} & \multicolumn{2}{c}{Memory} \\
+	\cmidrule(lr){4-7} \cmidrule(l){8-9}
 	Sequence \# & CPU \# & Operation & 0 & 1 & 2 & 3 & 0 & 8 \\
-	\hline
+	\cmidrule(r){1-3} \cmidrule(lr){4-7} \cmidrule(l){8-9}
 %	Seq CPU Operation	------------- CPU -------------   - Memory -
 %				   0	   1	   2	   3	    0   8
-	\hline
 	0 &   & Initial State	& $-$/I & $-$/I & $-$/I & $-$/I   & V & V \\
-	\hline
 	1 & 0 & Load		& 0/S &   $-$/I & $-$/I & $-$/I   & V & V \\
-	\hline
 	2 & 3 & Load		& 0/S &   $-$/I & $-$/I & 0/S     & V & V \\
-	\hline
 	3 & 0 & Invalidation	& 8/S &   $-$/I & $-$/I & 0/S     & V & V \\
-	\hline
 	4 & 2 & RMW		& 8/S &   $-$/I & 0/E &   $-$/I   & V & V \\
-	\hline
 	5 & 2 & Store		& 8/S &   $-$/I & 0/M &   $-$/I   & I & V \\
-	\hline
 	6 & 1 & Atomic Inc	& 8/S &   0/M &   $-$/I & $-$/I   & I & V \\
-	\hline
 	7 & 1 & Writeback	& 8/S &   8/S &   $-$/I & $-$/I   & V & V \\
+	\bottomrule
 \end{tabular}
 \caption{Cache Coherence Example}
 \label{tab:app:whymb:Cache Coherence Example}
@@ -595,25 +609,25 @@ Finally, CPU~1 reads the cache line at address~8, which uses a
 
 Note that we end with data in some of the CPU's caches.
 
-\QuickQuiz{}
+\QuickQuiz{
 	What sequence of operations would put the CPUs' caches
 	all back into the ``invalid'' state?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	There is no such sequence, at least in absence of special
 	``flush my cache'' instructions in the CPU's instruction set.
 	Most CPUs do have such instructions.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 \section{Stores Result in Unnecessary Stalls}
 \label{sec:app:whymb:Stores Result in Unnecessary Stalls}
 
 Although the cache structure shown in
-Figure~\ref{fig:app:whymb:Modern Computer System Cache Structure}
+\cref{fig:app:whymb:Modern Computer System Cache Structure}
 provides good performance for repeated reads and writes from a given CPU
 to a given item of data, its performance for the first write to
 a given cache line is quite poor.
 To see this, consider
-Figure~\ref{fig:app:whymb:Writes See Unnecessary Stalls},
+\cref{fig:app:whymb:Writes See Unnecessary Stalls},
 which shows a timeline of a write by CPU~0 to a cacheline held in
 CPU~1's cache.
 Since CPU~0 must wait for the cache line to arrive before it can
@@ -622,7 +636,7 @@ write to it, CPU~0 must stall for an extended period of time.\footnote{
 	to another's is typically a few orders of magnitude more than
 	that required to execute a simple register-to-register instruction.}
 
-\begin{figure}[htb]
+\begin{figure}
 \centering
 % \resizebox{3in}{!}{\includegraphics{appendix/whymb/cacheSCwrite}}
 \includegraphics{appendix/whymb/cacheSCwrite}
@@ -639,26 +653,26 @@ sends it, CPU~0 is going to unconditionally overwrite it.
 
 One way to prevent this unnecessary stalling of writes is to add
 ``store buffers'' between each CPU and its cache, as shown in
-Figure~\ref{fig:app:whymb:Caches With Store Buffers}.
+\cref{fig:app:whymb:Caches With Store Buffers}.
 With the addition of these store buffers, CPU~0 can simply record
 its write in its store buffer and continue executing.
 When the cache line does finally make its way from CPU~1 to CPU~0,
 the data will be moved from the store buffer to the cache line.
 
-\QuickQuiz{}
+\QuickQuiz{
 	But if the main purpose of store buffers is to hide acknowledgment
 	latencies in multiprocessor cache-coherence protocols, why
 	do uniprocessors also have store buffers?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Because the purpose of store buffers is not just to hide
 	acknowledgement latencies in multiprocessor cache-coherence protocols,
 	but to hide memory latencies in general.
 	Because memory is much slower than is cache on uniprocessors,
 	store buffers on uniprocessors can help to hide write-miss
 	latencies.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
-\begin{figure}[htb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{appendix/whymb/cacheSB}}
 \caption{Caches With Store Buffers}
@@ -670,7 +684,7 @@ hardware multithreading, local to a given core.
 Either way, a given CPU is permitted to access only the store buffer
 assigned to it.
 For example, in
-Figure~\ref{fig:app:whymb:Caches With Store Buffers}, CPU~0 cannot
+\cref{fig:app:whymb:Caches With Store Buffers}, CPU~0 cannot
 access CPU~1's store buffer and vice versa.
 This restriction simplifies the hardware by separating concerns:
 The store buffer improves performance for consecutive writes, while
@@ -687,24 +701,19 @@ consider the following code with variables ``a'' and ``b'' both initially
 zero, and with the cache line containing variable ``a'' initially
 owned by CPU~1 and that containing ``b'' initially owned by CPU~0:
 
-\vspace{5pt}
-\begin{minipage}[t]{\columnwidth}
-\small
-\begin{verbatim}
-  1   a = 1;
-  2   b = a + 1;
-  3   assert(b == 2);
-\end{verbatim}
-\end{minipage}
-\vspace{5pt}
+\begin{VerbatimN}[fontsize=\footnotesize,samepage=true]
+a = 1;
+b = a + 1;
+assert(b == 2);
+\end{VerbatimN}
 
 One would not expect the assertion to fail.
 However, if one were foolish enough to use the very simple architecture
 shown in
-Figure~\ref{fig:app:whymb:Caches With Store Buffers},
+\cref{fig:app:whymb:Caches With Store Buffers},
 one would be surprised.
 Such a system could potentially see the following sequence of events:
-\begin{enumerate}
+\begin{sequence}
 \item	CPU~0 starts executing the \co{a = 1}.
 \item	CPU~0 looks ``a'' up in the cache, and finds that it is missing.
 \item	CPU~0 therefore sends a ``read invalidate'' message in order to
@@ -725,7 +734,7 @@ Such a system could potentially see the following sequence of events:
 	and stores it into the cache line containing ``b''
 	(which we will assume is already owned by CPU~0).
 \item	CPU~0 executes \co{assert(b == 2)}, which fails.
-\end{enumerate}
+\end{sequence}
 
 The problem is that we have two copies of ``a'', one in the cache and
 the other in the store buffer.
@@ -737,11 +746,11 @@ so much so
 that the hardware guys took pity and implemented ``store forwarding'',
 where each CPU refers to (or ``snoops'') its store buffer as well
 as its cache when performing loads, as shown in
-Figure~\ref{fig:app:whymb:Caches With Store Forwarding}.
+\cref{fig:app:whymb:Caches With Store Forwarding}.
 In other words, a given CPU's stores are directly forwarded to its
 subsequent loads, without having to pass through the cache.
 
-\begin{figure}[htb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{appendix/whymb/cacheSBf}}
 \caption{Caches With Store Forwarding}
@@ -760,33 +769,30 @@ To see the second complication, a violation of global memory ordering,
 consider the following code sequences
 with variables ``a'' and ``b'' initially zero:
 
-\vspace{5pt}
-\begin{minipage}[t]{\columnwidth}
-\small
-\begin{verbatim}
-  1 void foo(void)
-  2 {
-  3   a = 1;
-  4   b = 1;
-  5 }
-  6
-  7 void bar(void)
-  8 {
-  9   while (b == 0) continue;
- 10   assert(a == 1);
- 11 }
-\end{verbatim}
-\end{minipage}
-\vspace{5pt}
+\begin{VerbatimN}[fontsize=\footnotesize,samepage=true]
+void foo(void)
+{
+	a = 1;
+	b = 1;
+}
+
+void bar(void)
+{
+	while (b == 0) continue;
+	assert(a == 1);
+}
+\end{VerbatimN}
 
 Suppose CPU~0 executes foo() and CPU~1 executes bar().
 Suppose further that the cache line containing ``a'' resides only in CPU~1's
 cache, and that the cache line containing ``b'' is owned by CPU~0.
 Then the sequence of operations might be as follows:
-\begin{enumerate}
-\item	CPU~0 executes \co{a = 1}.  The cache line is not in
-	CPU~0's cache, so CPU~0 places the new value of ``a'' in its
-	store buffer and transmits a ``read invalidate'' message.
+\begin{sequence}
+\item	CPU~0 executes \co{a = 1}.
+	The cache line is not in CPU~0's cache, so CPU~0 places the new
+	value of ``a'' in its store buffer and transmits a ``read
+	invalidate'' message.
+	\label{seq:app:whymb:Store Buffers and Memory Barriers}
 \item	CPU~1 executes \co{while (b == 0) continue}, but the cache line
 	containing ``b'' is not in its cache.
 	It therefore transmits a ``read'' message.
@@ -811,15 +817,16 @@ Then the sequence of operations might be as follows:
 \item	CPU~0 receives the cache line containing ``a'' and applies
 	the buffered store just in time to fall victim to CPU~1's
 	failed assertion.
-\end{enumerate}
+\end{sequence}
 
-\QuickQuiz{}
-	In step~1 above, why does CPU~0 need to issue a ``read invalidate''
+\QuickQuiz{
+	In \cref{seq:app:whymb:Store Buffers and Memory Barriers} above,
+	why does CPU~0 need to issue a ``read invalidate''
 	rather than a simple ``invalidate''?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Because the cache line in question contains more than just the
 	variable \co{a}.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 The hardware designers cannot help directly here, since the CPUs have
 no idea which variables are related, let alone how they might be related.
@@ -827,25 +834,20 @@ Therefore, the hardware designers provide memory-barrier instructions
 to allow the software to tell the CPU about such relations.
 The program fragment must be updated to contain the memory barrier:
 
-\vspace{5pt}
-\begin{minipage}[t]{\columnwidth}
-\small
-\begin{verbatim}
-  1 void foo(void)
-  2 {
-  3   a = 1;
-  4   smp_mb();
-  5   b = 1;
-  6 }
-  7
-  8 void bar(void)
-  9 {
- 10   while (b == 0) continue;
- 11   assert(a == 1);
- 12 }
-\end{verbatim}
-\end{minipage}
-\vspace{5pt}
+\begin{VerbatimN}[fontsize=\footnotesize,samepage=true]
+void foo(void)
+{
+	a = 1;
+	smp_mb();
+	b = 1;
+}
+
+void bar(void)
+{
+	while (b == 0) continue;
+	assert(a == 1);
+}
+\end{VerbatimN}
 
 The memory barrier \co{smp_mb()} will cause the CPU to flush its store
 buffer before applying each subsequent store to its variable's cache line.
@@ -855,10 +857,11 @@ stores until all of the prior entries in the store buffer had been
 applied.
 
 With this latter approach the sequence of operations might be as follows:
-\begin{enumerate}
-\item	CPU~0 executes \co{a = 1}.  The cache line is not in
-	CPU~0's cache, so CPU~0 places the new value of ``a'' in its
-	store buffer and transmits a ``read invalidate'' message.
+\begin{sequence}
+\item	CPU~0 executes \co{a = 1}.
+	The cache line is not in CPU~0's cache, so CPU~0 places the new
+	value of ``a'' in its store buffer and transmits a ``read
+	invalidate'' message.
 \item	CPU~1 executes \co{while (b == 0) continue}, but the cache line
 	containing ``b'' is not in its cache.
 	It therefore transmits a ``read'' message.
@@ -905,7 +908,8 @@ With this latter approach the sequence of operations might be as follows:
 \item	CPU~0 receives the ``read'' message, and transmits the
 	cache line containing the new value of ``b''
 	to CPU~1.
-	It also marks its own copy of this cache line as ``shared''.
+	It also marks its own copy of this cache line as ``shared''.%
+	\label{seq:app:whymb:Store buffers: All copies shared}
 \item	CPU~1 receives the cache line containing ``b'' and installs
 	it in its cache.
 \item	CPU~1 can now load the value of ``b'',
@@ -917,7 +921,29 @@ With this latter approach the sequence of operations might be as follows:
 	Once it gets this cache from CPU~0, it will be
 	working with the up-to-date value of ``a'', and the assertion
 	therefore passes.
-\end{enumerate}
+\end{sequence}
+
+\QuickQuiz{
+	After \cref{seq:app:whymb:Store buffers: All copies shared}
+	in \cref{sec:app:whymb:Store Buffers and Memory Barriers} on
+	page~\pageref{seq:app:whymb:Store buffers: All copies shared},
+	both CPUs might drop the cache line containing the new value of
+	``b''.
+	Wouldn't that cause this new value to be lost?
+}\QuickQuizAnswer{
+	It might, and that is why real hardware takes steps to avoid
+	this problem.
+	A traditional approach, pointed out by Vasilevsky Alexander,
+	is to write this cache line back to main memory before marking
+	the cache line as ``shared''.
+	A more efficient (though more complex) approach is to use
+	additional state to indicate whether or not the cache line
+	is ``dirty'', allowing the writeback to happen.
+	Year-2000 systems went further, using much more state in order to
+	avoid redundant writebacks~\cite[Figure 8.42]{DavidECuller1999}.
+	It would be reasonable to assume that complexity has not decreased
+	in the meantime.
+}\QuickQuizEnd
 
 As you can see, this process involves no small amount of bookkeeping.
 Even something intuitively simple, like ``load the value of a'' can
@@ -961,7 +987,7 @@ messages regarding that cache line.
 \subsection{Invalidate Queues and Invalidate Acknowledge}
 \label{sec:app:whymb:Invalidate Queues and Invalidate Acknowledge}
 
-Figure~\ref{fig:app:whymb:Caches With Invalidate Queues}
+\Cref{fig:app:whymb:Caches With Invalidate Queues}
 shows a system with invalidate queues.
 A CPU with an invalidate queue may acknowledge an invalidate message
 as soon as it is placed in the queue, instead of having to wait until
@@ -972,7 +998,7 @@ cache line is in the invalidate queue, the CPU cannot immediately
 transmit the invalidate message; it must instead wait until the
 invalidate-queue entry has been processed.
 
-\begin{figure}[htb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{appendix/whymb/cacheSBfIQ}}
 \caption{Caches With Invalidate Queues}
@@ -1005,40 +1031,39 @@ is owned by CPU~0 (MESI ``exclusive'' or ``modified'' state).
 Then suppose that CPU~0 executes \co{foo()} while CPU~1 executes
 function \co{bar()} in the following code fragment:
 
-\vspace{5pt}
-\begin{minipage}[t]{\columnwidth}
-\small
-\begin{verbatim}
-  1 void foo(void)
-  2 {
-  3   a = 1;
-  4   smp_mb();
-  5   b = 1;
-  6 }
-  7
-  8 void bar(void)
-  9 {
- 10   while (b == 0) continue;
- 11   assert(a == 1);
- 12 }
-\end{verbatim}
-\end{minipage}
-\vspace{5pt}
+\begin{fcvlabel}[ln:app:whymb:Breaking mb]
+\begin{VerbatimN}[fontsize=\footnotesize,samepage=true,commandchars=\\\[\]]
+void foo(void)
+{
+	a = 1;
+	smp_mb();	\lnlbl[mb]
+	b = 1;
+}
+
+void bar(void)
+{
+	while (b == 0) continue;
+	assert(a == 1);
+}
+\end{VerbatimN}
+\end{fcvlabel}
 
 Then the sequence of operations might be as follows:
-\begin{enumerate}
-\item	CPU~0 executes \co{a = 1}.  The corresponding
-	cache line is read-only in
-	CPU~0's cache, so CPU~0 places the new value of ``a'' in its
-	store buffer and transmits an ``invalidate'' message in order
-	to flush the corresponding cache line from CPU~1's cache.
+\begin{fcvref}[ln:app:whymb:Breaking mb]
+\begin{sequence}
+\item	CPU~0 executes \co{a = 1}.
+	The corresponding cache line is read-only in CPU~0's cache, so
+	CPU~0 places the new value of ``a'' in its store buffer and
+	transmits an ``invalidate'' message in order to flush the
+	corresponding cache line from CPU~1's cache.
+	\label{seq:app:whymb:Invalidate Queues and Memory Barriers}
 \item	CPU~1 executes \co{while (b == 0) continue}, but the cache line
 	containing ``b'' is not in its cache.
 	It therefore transmits a ``read'' message.
 \item	CPU~1 receives CPU~0's ``invalidate'' message, queues it, and
 	immediately responds to it.
 \item	CPU~0 receives the response from CPU~1, and is therefore free
-	to proceed past the \co{smp_mb()} on line~4 above, moving
+	to proceed past the \co{smp_mb()} on \clnref{mb} above, moving
 	the value of ``a'' from its store buffer to its cache line.
 \item	CPU~0 executes \co{b = 1}.
 	It already owns this cache line (in other words, the cache line
@@ -1058,22 +1083,24 @@ Then the sequence of operations might be as follows:
 \item	Despite the assertion failure, CPU~1 processes the queued
 	``invalidate'' message, and (tardily)
 	invalidates the cache line containing ``a'' from its own cache.
-\end{enumerate}
+\end{sequence}
+\end{fcvref}
 
-\QuickQuiz{}
-	In step~1 of the first scenario in
-	Section~\ref{sec:app:whymb:Invalidate Queues and Memory Barriers},
+\QuickQuiz{
+	In \cref{seq:app:whymb:Invalidate Queues and Memory Barriers}
+	of the first scenario in
+	\cref{sec:app:whymb:Invalidate Queues and Memory Barriers},
 	why is an ``invalidate'' sent instead of a ''read invalidate''
 	message?
 	Doesn't CPU~0 need the values of the other variables that share
 	this cache line with ``a''?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	CPU~0 already has the values of these variables, given that it
 	has a read-only copy of the cache line containing ``a''.
 	Therefore, all CPU~0 need do is to cause the other CPUs to discard
 	their copies of this cache line.
 	An ``invalidate'' message therefore suffices.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 There is clearly not much point in accelerating invalidation responses
 if doing so causes memory barriers to effectively be ignored.
@@ -1084,91 +1111,99 @@ and forces any subsequent load to wait until all marked entries
 have been applied to the CPU's cache.
 Therefore, we can add a memory barrier to function \co{bar} as follows:
 
-\vspace{5pt}
-\begin{minipage}[t]{\columnwidth}
-\small
-\begin{verbatim}
-  1 void foo(void)
-  2 {
-  3   a = 1;
-  4   smp_mb();
-  5   b = 1;
-  6 }
-  7
-  8 void bar(void)
-  9 {
- 10   while (b == 0) continue;
- 11   smp_mb();
- 12   assert(a == 1);
- 13 }
-\end{verbatim}
-\end{minipage}
-\vspace{5pt}
+\begin{fcvlabel}[ln:app:whymb:Add mb]
+\begin{VerbatimN}[fontsize=\footnotesize,samepage=true,commandchars=\\\[\]]
+void foo(void)
+{
+	a = 1;
+	smp_mb();		\lnlbl[mb1]
+	b = 1;
+}
 
-\QuickQuiz{}
+void bar(void)
+{
+	while (b == 0) continue;
+	smp_mb();
+	assert(a == 1);
+}
+\end{VerbatimN}
+\end{fcvlabel}
+
+\QuickQuiz{
 	Say what???
 	Why do we need a memory barrier here, given that the CPU cannot
 	possibly execute the \co{assert()} until after the
 	\co{while} loop completes?
-\QuickQuizAnswer{
-	CPUs are free to speculatively execute, which can have the effect
-	of executing the assertion before the \co{while} loop completes.
-	Furthermore, compilers normally assume that only the currently
-	executing thread is updating the variables, and this assumption
-	allows the compiler to hoist the load of \co{a} to precede the
+}\QuickQuizAnswer{
+	Suppose that memory barrier was omitted.
+
+	Keep in mind that CPUs are free to speculatively execute later
+	loads, which can have the effect of executing the assertion
+	before the \co{while} loop completes.
+	Furthermore, compilers assume that only the currently executing
+	thread is updating the variables, and this assumption allows
+	the compiler to hoist the load of \co{a} to precede the
 	loop.
 
 	In fact, some compilers would transform the loop to a branch
 	around an infinite loop as follows:
 
-\vspace{5pt}
-\begin{minipage}[t]{\columnwidth}
-\small
-\begin{verbatim}
-  1 void foo(void)
-  2 {
-  3   a = 1;
-  4   smp_mb();
-  5   b = 1;
-  6 }
-  7 
-  8 void bar(void)
-  9 {
- 10   if (b == 0)
- 11     for (;;)
- 12       continue;
- 13   smp_mb();
- 14   assert(a == 1);
- 15 }
-\end{verbatim}
-\end{minipage}
-\vspace{5pt}
+\begin{VerbatimN}[fontsize=\footnotesize,samepage=true]
+void foo(void)
+{
+	a = 1;
+	smp_mb();
+	b = 1;
+}
 
-	Given this optimization, the assertion could clearly fire.
-	You should use volatile casts or (where available) C++
-	relaxed atomics to prevent the compiler from optimizing
-	your parallel code into oblivion.
+void bar(void)
+{
+	if (b == 0)
+		for (;;)
+			continue;
+	assert(a == 1);
+}
+\end{VerbatimN}
 
-	In short, both compilers and CPUs are quite aggressive about
-	optimizing, so you must clearly communicate your constraints
-	to them, using compiler directives and memory barriers.
+	Given this optimization, the code would behave in a completely
+	different way than the original code.
+	If \co{bar()} observed \qco{b == 0}, the assertion could of
+	course not be reached at all due to the infinite loop.
+	However, if \co{bar()} loaded the value \qco{1} just as
+	\qco{foo()} stored it, the CPU might still have the old
+	zero value of \qco{a} in its cache, which would cause
+	the assertion to fire.
+	You should of course use volatile casts (for example, those
+	volatile casts implied by the C11 relaxed atomic load operation)
+	to prevent the compiler from optimizing your parallel code
+	into oblivion.
+	But volatile casts would not prevent a weakly ordered CPU
+	from loading the old value for \qco{a} from its cache, which
+	means that this code also requires the explicit memory barrier
+	in \qco{bar()}.
+
+	In short, both compilers and CPUs aggressively apply
+	code-reordering optimizations, so you must clearly communicate
+	your constraints using the compiler directives and memory barriers
+	provided for this purpose.
 %
-} \QuickQuizEnd
+}\QuickQuizEnd
 
+\begin{fcvref}[ln:app:whymb:Add mb]
 With this change, the sequence of operations might be as follows:
-\begin{enumerate}
-\item	CPU~0 executes \co{a = 1}.  The corresponding
-	cache line is read-only in
-	CPU~0's cache, so CPU~0 places the new value of ``a'' in its
-	store buffer and transmits an ``invalidate'' message in order
-	to flush the corresponding cache line from CPU~1's cache.
+\begin{sequence}
+\item	CPU~0 executes \co{a = 1}.
+	The corresponding cache line is read-only in CPU~0's cache,
+	so CPU~0 places the new value of ``a'' in its store buffer and
+	transmits an ``invalidate'' message in order to flush the
+	corresponding cache line from CPU~1's cache.
 \item	CPU~1 executes \co{while (b == 0) continue}, but the cache line
 	containing ``b'' is not in its cache.
 	It therefore transmits a ``read'' message.
 \item	CPU~1 receives CPU~0's ``invalidate'' message, queues it, and
 	immediately responds to it.
 \item	CPU~0 receives the response from CPU~1, and is therefore free
-	to proceed past the \co{smp_mb()} on line~4 above, moving
+	to proceed past the \co{smp_mb()} on \clnref{mb1} above, moving
 	the value of ``a'' from its store buffer to its cache line.
 \item	CPU~0 executes \co{b = 1}.
 	It already owns this cache line (in other words, the cache line
@@ -1194,7 +1229,8 @@ With this change, the sequence of operations might be as follows:
 	containing the new value of ``a''.
 \item	CPU~1 receives this cache line, which contains a value of 1 for
 	``a'', so that the assertion does not trigger.
-\end{enumerate}
+\end{sequence}
+\end{fcvref}
 
 With much passing of MESI messages, the CPUs arrive at the correct answer.
 This section illustrates why CPU designers must be extremely careful
@@ -1229,26 +1265,21 @@ only on the CPU executing the memory barrier.
 If we update \co{foo} and \co{bar} to use read and write memory
 barriers, they appear as follows:
 
-\vspace{5pt}
-\begin{minipage}[t]{\columnwidth}
-\small
-\begin{verbatim}
-  1 void foo(void)
-  2 {
-  3   a = 1;
-  4   smp_wmb();
-  5   b = 1;
-  6 }
-  7
-  8 void bar(void)
-  9 {
- 10   while (b == 0) continue;
- 11   smp_rmb();
- 12   assert(a == 1);
- 13 }
-\end{verbatim}
-\end{minipage}
-\vspace{5pt}
+\begin{VerbatimN}[fontsize=\footnotesize,samepage=true]
+void foo(void)
+{
+	a = 1;
+	smp_wmb();
+	b = 1;
+}
+
+void bar(void)
+{
+	while (b == 0) continue;
+	smp_rmb();
+	assert(a == 1);
+}
+\end{VerbatimN}
 
 Some computers have even more flavors of memory barriers, but
 understanding these three variants will provide a good introduction
@@ -1281,7 +1312,7 @@ memory-ordering-hostile computer architecture.\footnote{
 	architectures are encouraged to consult CPU vendors'
 	manuals~\cite{ALPHA95,AMDOpteron02,IntelItanium02v2,PowerPC94,MichaelLyons05a,SPARC94,IntelXeonV3-96a,IntelXeonV2b-96a,IBMzSeries04a},
 	Gharachorloo's dissertation~\cite{Gharachorloo95},
-	Peter Sewell's work~\cite{PeterSewell2010weakmemory}, or
+	Peter Sewell's work~\cite{PeterSewell2021weakmemory}, or
 	the excellent hardware-oriented primer by
 	Sorin, Hill, and Wood~\cite{DanielJSorin2011MemModel}.}
 
@@ -1304,42 +1335,44 @@ constraints~\cite{PaulMcKenney2005i,PaulMcKenney2005j}:
 	any accesses following that memory barrier.
 \end{enumerate}
 
-\QuickQuiz{}
+\QuickQuiz{
 	Does the guarantee that each CPU sees its own memory accesses
 	in order also guarantee that each user-level thread will see
 	its own memory accesses in order?
 	Why or why not?
-\QuickQuizAnswer{
-	No.  Consider the case where a thread migrates from one CPU to
+}\QuickQuizAnswer{
+	No.
+	Consider the case where a thread migrates from one CPU to
 	another, and where the destination CPU perceives the source
-	CPU's recent memory operations out of order.  To preserve
-	user-mode sanity, kernel hackers must use memory barriers in
-	the context-switch path.  However, the locking already required
-	to safely do a context switch should automatically provide
-	the memory barriers needed to cause the user-level task to see
-	its own accesses in order.  That said, if you are designing a
-	super-optimized scheduler, either in the kernel or at user level,
+	CPU's recent memory operations out of order.
+	To preserve user-mode sanity, kernel hackers must use memory
+	barriers in the context-switch path.
+	However, the locking already required to safely do a context
+	switch should automatically provide the memory barriers needed
+	to cause the user-level task to see its own accesses in order.
+        That said, if you are designing a super-optimized scheduler,
+	either in the kernel or at user level,
 	please keep this scenario in mind!
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 Imagine a large non-uniform cache architecture (NUCA) system that,
 in order to provide fair allocation
 of interconnect bandwidth to CPUs in a given node, provided per-CPU
 queues in each node's interconnect interface, as shown in
-Figure~\ref{fig:app:whymb:Example Ordering-Hostile Architecture}.
+\cref{fig:app:whymb:Example Ordering-Hostile Architecture}.
 Although a given CPU's accesses are ordered as specified by memory
 barriers executed by that CPU, however, the relative order of a
 given pair of CPUs' accesses could be severely reordered,
 as we will see.\footnote{
 	Any real hardware architect or designer will no doubt be
 	objecting strenuously,
-	as they just might be just a bit upset about the prospect of working
+	as they just might be a bit upset about the prospect of working
 	out which queue should handle a message involving a cache line
 	that both CPUs accessed, to say nothing of the many races that
 	this example poses.
 	All I can say is ``Give me a better example''.}
 
-\begin{figure}[htb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{appendix/whymb/hostileordering}}
 \caption{Example Ordering-Hostile Architecture}
@@ -1349,12 +1382,15 @@ as we will see.\footnote{
 \subsection{Example 1}
 \label{sec:app:whymb:Example 1}
 
-Table~\ref{tab:app:whymb:Memory Barrier Example 1}
+\Cref{lst:app:whymb:Memory Barrier Example 1}
 shows three code fragments, executed concurrently by CPUs~0, 1, and 2.
 Each of ``a'', ``b'', and ``c'' are initially zero.
 
-\begin{table*}
-\small
+\floatstyle{plaintop}
+\restylefloat{listing}
+
+\begin{listing}
+\scriptsize
 \centering{\tt
 \begin{tabular}{l|l|l}
 	\multicolumn{1}{c|}{\nf{CPU~0}} &
@@ -1370,8 +1406,8 @@ Each of ``a'', ``b'', and ``c'' are initially zero.
 			 &		& assert(z == 0 || x == 1); \\
 \end{tabular}}
 \caption{Memory Barrier Example 1}
-\label{tab:app:whymb:Memory Barrier Example 1}
-\end{table*}
+\label{lst:app:whymb:Memory Barrier Example 1}
+\end{listing}
 
 Suppose CPU~0 recently experienced many cache misses, so that its
 message queue is full, but that CPU~1 has been running exclusively within
@@ -1389,12 +1425,13 @@ Therefore, portable code cannot rely on this assertion not firing,
 as both the compiler and the CPU can reorder the code so as to trip
 the assertion.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Could this code be fixed by inserting a memory barrier
 	between CPU~1's ``while'' and assignment to ``c''?
 	Why or why not?
-\QuickQuizAnswer{
-	No.  Such a memory barrier would only force ordering local to CPU~1.
+}\QuickQuizAnswer{
+	No.
+	Such a memory barrier would only force ordering local to CPU~1.
 	It would have no effect on the relative ordering of CPU~0's and
 	CPU~1's accesses, so the assertion could still fail.
 	However, all mainstream computer systems provide one mechanism
@@ -1404,17 +1441,17 @@ the assertion.
 	the effects of A's accesses.
 	In short, hardware designers have taken at least a little pity
 	on software developers.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 \subsection{Example 2}
 \label{sec:app:whymb:Example 2}
 
-Table~\ref{tab:app:whymb:Memory Barrier Example 2}
+\Cref{lst:app:whymb:Memory Barrier Example 2}
 shows three code fragments, executed concurrently by CPUs~0, 1, and 2.
 Both ``a'' and ``b'' are initially zero.
 
-\begin{table*}
-\small
+\begin{listing}
+\scriptsize
 \centering{\tt
 \begin{tabular}{l|l|l}
 	\multicolumn{1}{c|}{\nf{CPU~0}} &
@@ -1429,8 +1466,8 @@ Both ``a'' and ``b'' are initially zero.
 		     &			& assert(y == 0 || x == 1); \\
 \end{tabular}}
 \caption{Memory Barrier Example 2}
-\label{tab:app:whymb:Memory Barrier Example 2}
-\end{table*}
+\label{lst:app:whymb:Memory Barrier Example 2}
+\end{listing}
 
 Again, suppose CPU~0 recently experienced many cache misses, so that its
 message queue is full, but that CPU~1 has been running exclusively within
@@ -1451,11 +1488,11 @@ mainstream computer systems.
 \subsection{Example 3}
 \label{sec:app:whymb:Example 3}
 
-Table~\ref{tab:app:whymb:Memory Barrier Example 3}
+\Cref{lst:app:whymb:Memory Barrier Example 3}
 shows three code fragments, executed concurrently by CPUs~0, 1, and 2.
 All variables are initially zero.
 
-\begin{table*}
+\begin{listing*}
 \scriptsize
 \centering{\tt
 \begin{tabular}{r|l|l|l}
@@ -1475,23 +1512,27 @@ All variables are initially zero.
  9 &	e = 1; &			& assert(e == 0 || a == 1); \\
 \end{tabular}}
 \caption{Memory Barrier Example 3}
-\label{tab:app:whymb:Memory Barrier Example 3}
-\end{table*}
+\label{lst:app:whymb:Memory Barrier Example 3}
+\end{listing*}
+
+\floatstyle{ruled}
+\restylefloat{listing}
 
 Note that neither CPU~1 nor CPU~2 can proceed to line~5 until they see
 CPU~0's assignment to ``b'' on line~3.
-Once CPU~1 and 2 have executed their memory barriers on line~4, they
+Once CPU~1 and~2 have executed their memory barriers on line~4, they
 are both guaranteed to see all assignments by CPU~0 preceding its memory
 barrier on line~2.
-Similarly, CPU~0's memory barrier on line~8 pairs with those of CPUs~1 and 2
+Similarly, CPU~0's memory barrier on line~8 pairs with those of CPUs~1 and~2
 on line~4, so that CPU~0 will not execute the assignment to ``e'' on
-line~9 until after its assignment to ``a'' is visible to both of the
+line~9 until after its assignment to ``b'' is visible to both of the
 other CPUs.
 Therefore, CPU~2's assertion on line~9 is guaranteed \emph{not} to fire.
 
-\QuickQuiz{}
-	Suppose that lines~3-5 for CPUs~1 and 2 in
-	Table~\ref{tab:app:whymb:Memory Barrier Example 3}
+\QuickQuizSeries{%
+\QuickQuizB{
+	Suppose that lines~3--5 for CPUs~1 and~2 in
+	\cref{lst:app:whymb:Memory Barrier Example 3}
 	are in an interrupt
 	handler, and that the CPU~2's line~9 runs at process level.
 	In other words, the code in all three columns of the table
@@ -1501,7 +1542,7 @@ Therefore, CPU~2's assertion on line~9 is guaranteed \emph{not} to fire.
 	by the code in the first two columns.
 	What changes, if any, are required to enable the code to work
 	correctly, in other words, to prevent the assertion from firing?
-\QuickQuizAnswer{
+}\QuickQuizAnswerB{
 	The assertion must ensure that the load of
 	``e'' precedes that of ``a''.
 	In the Linux kernel, the \co{barrier()} primitive may be used to
@@ -1509,28 +1550,22 @@ Therefore, CPU~2's assertion on line~9 is guaranteed \emph{not} to fire.
 	used in the assertions in the previous examples.
 	For example, the assertion can be modified as follows:
 
-\vspace{5pt}
-\begin{minipage}[t]{\columnwidth}
-\small
-\begin{verbatim}
+\begin{VerbatimU}[fontsize=\footnotesize]
 r1 = e;
 barrier();
 assert(r1 == 0 || a == 1);
-\end{verbatim}
-\end{minipage}
-\vspace{5pt}
+\end{VerbatimU}
 
 	No changes are needed to the code in the first two columns,
 	because interrupt handlers run atomically from the perspective
 	of the interrupted code.
-
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndB
+%
+\QuickQuizE{
 	If CPU~2 executed an \co{assert(e==0||c==1)} in the example in
-	Table~\ref{tab:app:whymb:Memory Barrier Example 3},
+	\cref{lst:app:whymb:Memory Barrier Example 3},
 	would this assert ever trigger?
-\QuickQuizAnswer{
+}\QuickQuizAnswerE{
 	The result depends on whether the CPU supports ``transitivity''.
 	In other words, CPU~0 stored to ``e'' after seeing CPU~1's
 	store to ``c'', with a memory barrier between CPU~0's load
@@ -1539,834 +1574,11 @@ assert(r1 == 0 || a == 1);
 	guaranteed to see CPU~1's store?
 
 	All CPUs I am aware of claim to provide transitivity.
-} \QuickQuizEnd
+}\QuickQuizEndE
+}
 
 The Linux kernel's \co{synchronize_rcu()} primitive uses an algorithm
 similar to that shown in this example.
-
-\section{Memory-Barrier Instructions For Specific CPUs}
-\label{sec:app:whymb:Memory-Barrier Instructions For Specific CPUs}
-\OriginallyPublished{Appendix}{sec:app:whymb:Memory-Barrier Instructions For Specific CPUs}{Memory-Barrier Instructions For Specific CPUs}{Linux Journal}{PaulMcKenney2005i,PaulMcKenney2005j}
-
-Each CPU has its own peculiar memory-barrier instructions, which
-can make portability a challenge, as indicated by
-Table~\ref{tab:app:whymb:Summary of Memory Ordering}.
-In fact, many software environments,
-including pthreads and Java, simply prohibit
-direct use of memory barriers, restricting the programmer to mutual-exclusion
-primitives that incorporate them to the extent that they are required.
-In the table,
-the first four columns indicate whether a given CPU allows the four
-possible combinations of loads and stores to be reordered.
-The next two columns indicate whether a given CPU allows loads and stores
-to be reordered with atomic instructions.
-
-The seventh column, data-dependent reads reordered, requires some explanation,
-which is undertaken in the following section covering Alpha CPUs.
-The short version is that Alpha requires memory barriers for readers
-as well as updaters of linked data structures.
-Yes, this does mean that Alpha can in effect fetch
-the data pointed to {\em before} it fetches the pointer itself, strange
-but true.
-Please see the online documentation~\cite{Compaq01,WilliamPugh2000Gharachorloo}
-if you think that I am just making this up.
-The benefit of this extremely weak memory model is that Alpha can use
-simpler cache hardware, which in turn permitted higher clock frequency
-in Alpha's heyday.
-
-The last column indicates whether a given CPU has an incoherent
-instruction cache and pipeline.
-Such CPUs require special instructions be executed for self-modifying
-code.
-
-Parenthesized CPU names indicate modes that are architecturally allowed,
-but rarely used in practice.
-
-\begin{table}
-\small
-\centering
-\begin{tabular}{l|c|c|c|c|c|c|c|c}
-	~ ~ ~ ~ ~ ~ ~ ~ ~
-	& \begin{picture}(6,185)(0,0)
-		\rotatebox{90}{Loads Reordered After Loads?}
-	  \end{picture}
-	& \begin{picture}(6,185)(0,0)
-		\rotatebox{90}{Loads Reordered After Stores?}
-	  \end{picture}
-	& \begin{picture}(6,185)(0,0)
-		\rotatebox{90}{Stores Reordered After Stores?}
-	  \end{picture}
-	& \begin{picture}(6,185)(0,0)
-		\rotatebox{90}{Stores Reordered After Loads?}
-	  \end{picture}
-	& \begin{picture}(6,185)(0,0)
-		\rotatebox{90}{Atomic Instructions Reordered With Loads?}
-	  \end{picture}
-	& \begin{picture}(6,185)(0,0)
-		\rotatebox{90}{Atomic Instructions Reordered With Stores?}
-	  \end{picture}
-	& \begin{picture}(6,185)(0,0)
-		\rotatebox{90}{Dependent Loads Reordered?}
-	  \end{picture}
-	& \begin{picture}(6,185)(0,0)
-		\rotatebox{90}{Incoherent Instruction Cache/Pipeline?}
-	  \end{picture}
-	\\
-	\hline
-%			 RR  RW  WW  WR    RA  WA  DR  IC
-	\hline
-	Alpha		& Y & Y & Y & Y   & Y & Y & Y & Y \\
-	\hline
-	AMD64		& ~ & ~ & ~ & Y   & ~ & ~ & ~ & ~ \\
-	\hline
-	ARMv7-A/R	& Y & Y & Y & Y   & Y & Y & ~ & Y \\
-	\hline
-	IA64		& Y & Y & Y & Y   & Y & Y & ~ & Y \\
-	\hline
-	MIPS		& Y & Y & Y & Y   & Y & Y & ~ & Y \\
-	\hline
-	(PA-RISC)	& Y & Y & Y & Y   & ~ & ~ & ~ & ~ \\
-	\hline
-	PA-RISC CPUs	& ~ & ~ & ~ & ~   & ~ & ~ & ~ & ~ \\
-	\hline
-	POWER\textsuperscript{\texttrademark}
-			& Y & Y & Y & Y   & Y & Y & ~ & Y \\
-	\hline
-	(SPARC RMO)	& Y & Y & Y & Y   & Y & Y & ~ & Y \\
-	\hline
-	(SPARC PSO)	& ~ & ~ & Y & Y   & ~ & Y & ~ & Y \\
-	\hline
-	SPARC TSO	& ~ & ~ & ~ & Y   & ~ & ~ & ~ & Y \\
-	\hline
-	x86		& ~ & ~ & ~ & Y   & ~ & ~ & ~ & Y \\
-	\hline
-	(x86 OOStore)	& Y & Y & Y & Y   & ~ & ~ & ~ & Y \\
-	\hline
-	zSeries\textsuperscript{\textregistered}
-			& ~ & ~ & ~ & Y   & ~ & ~ & ~ & Y \\
-\end{tabular}
-\caption{Summary of Memory Ordering}
-\label{tab:app:whymb:Summary of Memory Ordering}
-\end{table}
-
-The common ``just say no'' approach to memory barriers
-can be eminently reasonable where it applies,
-but there are environments, such as the Linux kernel, where direct
-use of memory barriers is required.
-Therefore,
-Linux provides a carefully chosen least-common-denominator
-set of memory-barrier primitives, which are as follows:
-\begin{description}
-\item	[\tco{smp_mb()}] (memory barrier) that orders both loads and
-	stores.
-	This means that loads and stores preceding the memory barrier
-	will be committed to memory before any loads and stores
-	following the memory barrier.
-\item	[\tco{smp_rmb()}] (read memory barrier) that orders only loads.
-\item	[\tco{smp_wmb()}] (write memory barrier) that orders only stores.
-\item	[\tco{smp_read_barrier_depends()}] that forces subsequent operations
-	that depend on prior operations to be ordered.
-	This primitive is a no-op on all platforms except Alpha.
-\item	[\tco{mmiowb()}] that forces ordering on MMIO writes that are guarded
-	by global spinlocks.
-	This primitive is a no-op on all platforms on which the memory
-	barriers in spinlocks already enforce MMIO ordering.
-	The platforms with a non-no-op {\tt mmiowb()} definition include
-	some (but not all) IA64, FRV, MIPS, and SH systems.
-	This primitive is relatively new, so relatively few drivers take
-	advantage of it.
-\end{description}
-The \co{smp_mb()}, \co{smp_rmb()}, and \co{smp_wmb()}
-primitives also force
-the compiler to eschew any optimizations that would have the effect
-of reordering memory optimizations across the barriers.
-The \co{smp_read_barrier_depends()} primitive has a similar effect, but
-only on Alpha CPUs.
-\IfInBook{See Section~\ref{sec:advsync:Memory Barriers} for
-more information on use of these primitives.}
-
-These primitives generate code only in SMP kernels, however, each
-also has a UP version ({\tt mb()}, {\tt rmb()}, {\tt wmb()},
-and \co{read_barrier_depends()},
-respectively) that generate a memory barrier even in UP kernels. The \co{smp_}
-versions should be used in most cases. However, these latter primitives
-are useful when writing drivers, because MMIO accesses must remain
-ordered even in UP kernels. In absence of memory-barrier instructions,
-both CPUs and compilers would happily rearrange these accesses, which at
-best would make the device act strangely, and could crash your kernel or,
-in some cases, even damage your hardware.
-
-So most kernel programmers need not worry about the memory-barrier
-peculiarities of each and every CPU, as long as they stick to these
-interfaces.
-If you are working deep in a given CPU's architecture-specific code,
-of course, all bets are off.
-
-Furthermore,
-all of Linux's locking primitives (spinlocks, reader-writer locks,
-semaphores, RCU, \ldots) include any needed barrier primitives.
-So if you are working with code that uses these primitives, you don't
-even need to worry about Linux's memory-ordering primitives.
-
-That said, deep knowledge of each CPU's memory-consistency model
-can be very helpful when debugging, to say nothing of when writing
-architecture-specific code or synchronization primitives.
-
-Besides, they say that a little knowledge is a very dangerous thing.
-Just imagine the damage you could do with a lot of knowledge!
-For those who wish to understand more about individual CPUs'
-memory consistency models, the next sections describes those of the
-most popular and prominent CPUs.
-Although nothing can replace actually reading a given CPU's documentation,
-these sections give a good overview.
-
-\subsection{Alpha}
-\label{sec:app:whymb:Alpha}
-
-It may seem strange to say much of anything about a CPU whose end of life
-has been announced, but Alpha is interesting because, with the weakest
-memory ordering model, it reorders memory operations the most aggressively.
-It therefore has defined the Linux-kernel memory-ordering primitives,
-which must work on all CPUs, including Alpha.
-Understanding Alpha is therefore surprisingly important to the Linux kernel
-hacker.
-
-The difference between Alpha and the other CPUs is illustrated by the
-code shown in
-Figure~\ref{fig:app:whymb:Insert and Lock-Free Search}.
-This \co{smp_wmb()} on line~9 of this figure
-guarantees that the element initialization
-in lines~6-8 is executed before the element is added to the
-list on line~10, so that the lock-free search will work correctly.
-That is, it makes this guarantee on all CPUs {\em except} Alpha.
-
-\begin{figure}
-{ \scriptsize
-\begin{verbbox}
-  1 struct el *insert(long key, long data)
-  2 {
-  3     struct el *p;
-  4     p = kmalloc(sizeof(*p), GFP_ATOMIC);
-  5     spin_lock(&mutex);
-  6     p->next = head.next;
-  7     p->key = key;
-  8     p->data = data;
-  9     smp_wmb();
- 10     head.next = p;
- 11     spin_unlock(&mutex);
- 12 }
- 13
- 14 struct el *search(long key)
- 15 {
- 16     struct el *p;
- 17     p = head.next;
- 18     while (p != &head) {
- 19         /* BUG ON ALPHA!!! */
- 20         if (p->key == key) {
- 21             return (p);
- 22         }
- 23         p = p->next;
- 24     };
- 25     return (NULL);
- 26 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Insert and Lock-Free Search}
-\label{fig:app:whymb:Insert and Lock-Free Search}
-\end{figure}
-
-Alpha has extremely weak memory ordering
-such that the code on line~20 of
-Figure~\ref{fig:app:whymb:Insert and Lock-Free Search} could see the old
-garbage values that were present before the initialization on lines~6-8.
-
-Figure~\ref{fig:app:whymb:Why smp-read-barrier-depends() is Required}
-shows how this can happen on
-an aggressively parallel machine with partitioned caches, so that
-alternating cache lines are processed by the different partitions
-of the caches.
-For example, the load of \co{head.next} on line~17 of
-Figure~\ref{fig:app:whymb:Insert and Lock-Free Search}
-might access cache bank~0,
-and the load of \co{p->key} on line~20 and of \co{p->next} on line~23
-might access cache bank~1.
-On Alpha, the \co{smp_wmb()} will guarantee that the cache invalidations
-performed by lines~6-8 of
-Figure~\ref{fig:app:whymb:Insert and Lock-Free Search}
-(for \co{p->next}, \co{p->key}, and \co{p->data}) will reach
-the interconnect before that of line~10 (for \co{head.next}), but
-makes absolutely no guarantee about the order of
-propagation through the reading CPU's cache banks.
-For example, it is possible that the reading CPU's cache bank~1 is very
-busy, but cache bank~0 is idle.
-This could result in the cache invalidations for the new element
-(\co{p->next}, \co{p->key}, and \co{p->data}) being
-delayed, so that the reading CPU loads the new value for \co{head.next},
-but loads the old cached values for \co{p->key} and \co{p->next}.
-See the documentation~\cite{Compaq01,WilliamPugh2000Gharachorloo}
-called out earlier for more information,
-or, again, if you think that I am just making all this up.\footnote{
-	Of course, the astute reader will have already recognized that
-	Alpha is nowhere near as mean and nasty as it could be,
-	the (thankfully) mythical architecture in
-	Section~\ref{sec:app:whymb:Ordering-Hostile Architecture}
-	being a case in point.}
-
-\begin{figure}[t]
-\centering
-\begin{picture}(213,160)(0,25)
-
-	% First CPU
-
-	\put(0,50){\framebox(90,20)[c]{(w)mb Sequencing}}
-	\put(0,70){\framebox(45,50)[l]{}}
-	\put(0,102){\makebox(45,1)[c]{Cache}}
-	\put(0,90){\makebox(45,1)[c]{Bank 0}}
-	\put(45,70){\framebox(45,50)[l]{}}
-	\put(45,102){\makebox(45,1)[c]{Cache}}
-	\put(45,90){\makebox(45,1)[c]{Bank 1}}
-	\put(0,120){\framebox(90,20)[c]{(r)mb Sequencing}}
-	\put(0,140){\framebox(90,20)[c]{Writing CPU Core}}
-
-	% Second CPU
-
-	\put(120,50){\framebox(90,20)[c]{(w)mb Sequencing}}
-	\put(120,70){\framebox(45,50)[l]{}}
-	\put(120,102){\makebox(45,1)[c]{Cache}}
-	\put(120,90){\makebox(45,1)[c]{Bank 0}}
-	\put(165,70){\framebox(45,50)[l]{}}
-	\put(165,102){\makebox(45,1)[c]{Cache}}
-	\put(165,90){\makebox(45,1)[c]{Bank 1}}
-	\put(120,120){\framebox(90,20)[c]{(r)mb Sequencing}}
-	\put(120,140){\framebox(90,20)[c]{Reading CPU Core}}
-
-	% Interconnection "network"
-
-	\put(45,50){\line(0,-1){25}}
-	\put(45,25){\line(1,0){120}}
-	\put(165,25){\vector(0,1){25}}
-	\put(45,25){\makebox(120,20)[c]{Interconnect}}
-
-\end{picture}
-\caption{Why \tco{smp_read_barrier_depends()} is Required}
-\label{fig:app:whymb:Why smp-read-barrier-depends() is Required}
-\end{figure}
-
-One could place an \co{smp_rmb()} primitive
-between the pointer fetch and dereference.
-However, this imposes unneeded overhead on systems (such as i386,
-IA64, PPC, and SPARC) that respect data dependencies on the read side.
-A \co{smp_read_barrier_depends()} primitive has been added to the
-Linux 2.6 kernel to eliminate overhead on these systems.
-This primitive may be used as shown on line~19 of
-Figure~\ref{fig:app:whymb:Safe Insert and Lock-Free Search}.
-
-It is also possible to implement a software barrier
-that could be used in place of \co{smp_wmb()}, which would force
-all reading CPUs to see the writing CPU's writes in order.
-However, this approach was deemed by the Linux community
-to impose excessive overhead
-on extremely weakly ordered CPUs such as Alpha.
-This software barrier could be implemented by sending inter-processor
-interrupts (IPIs) to all other CPUs.
-Upon receipt of such an IPI, a CPU would execute a memory-barrier
-instruction, implementing a memory-barrier shootdown.
-Additional logic is required to avoid deadlocks.
-Of course, CPUs that respect data dependencies would define such a barrier
-to simply be \co{smp_wmb()}.
-Perhaps this decision should be revisited in the future as Alpha
-fades off into the sunset.
-
-\begin{figure}
-{ \scriptsize
-\begin{verbbox}
-  1 struct el *insert(long key, long data)
-  2 {
-  3     struct el *p;
-  4     p = kmalloc(sizeof(*p), GFP_ATOMIC);
-  5     spin_lock(&mutex);
-  6     p->next = head.next;
-  7     p->key = key;
-  8     p->data = data;
-  9     smp_wmb();
- 10     head.next = p;
- 11     spin_unlock(&mutex);
- 12 }
- 13
- 14 struct el *search(long key)
- 15 {
- 16     struct el *p;
- 17     p = head.next;
- 18     while (p != &head) {
- 19         smp_read_barrier_depends();
- 20         if (p->key == key) {
- 21             return (p);
- 22         }
- 23         p = p->next;
- 24     };
- 25     return (NULL);
- 26 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Safe Insert and Lock-Free Search}
-\label{fig:app:whymb:Safe Insert and Lock-Free Search}
-\end{figure}
-
-The Linux memory-barrier primitives took their names from the Alpha
-instructions, so \co{smp_mb()} is {\tt mb}, \co{smp_rmb()} is {\tt rmb},
-and \co{smp_wmb()} is {\tt wmb}.
-Alpha is the only CPU where \co{smp_read_barrier_depends()} is
-an \co{smp_mb()} rather than a no-op.
-
-\QuickQuiz{}
-	Why is Alpha's \co{smp_read_barrier_depends()} an
-	\co{smp_mb()} rather than \co{smp_rmb()}?
-\QuickQuizAnswer{
-	First, Alpha has only \co{mb} and \co{wmb} instructions,
-	so \co{smp_rmb()} would be implemented by the Alpha \co{mb}
-	instruction in either case.
-
-	More importantly, \co{smp_read_barrier_depends()} must
-	order subsequent stores.
-	For example, consider the following code:
-
-\vspace{5pt}
-\begin{minipage}[t]{\columnwidth}
-\small
-\begin{verbatim}
-  1 p = global_pointer;
-  2 smp_read_barrier_depends();
-  3 if (do_something_with(p->a, p->b) == 0)
-  4   p->hey_look = 1;
-\end{verbatim}
-\end{minipage}
-\vspace{5pt}
-
-	Here the store to \co{p->hey_look} must be ordered,
-	not just the loads from \co{p->a} and \co{p->b}.
-} \QuickQuizEnd
-
-For more detail on Alpha, see the reference manual~\cite{ALPHA95}.
-
-\subsection{AMD64}
-
-AMD64 is compatible with x86, and has updated its documented memory
-model~\cite{AMDOpteron:2:2007}
-to enforce the tighter ordering that actual implementations have
-provided for some time.
-The AMD64 implementation of the Linux \co{smp_mb()} primitive is {\tt mfence},
-\co{smp_rmb()} is {\tt lfence}, and \co{smp_wmb()} is {\tt sfence}.
-In theory, these might be relaxed, but any such relaxation must take
-SSE and 3DNOW instructions into account.
-
-\subsection{ARMv7-A/R}
-
-The ARM family of CPUs is extremely popular in embedded applications,
-particularly for power-constrained applications such as cellphones.
-Its memory model is similar to that of Power
-(see Section~\ref{sec:app:whymb:POWER / PowerPC}, but ARM uses a
-different set of memory-barrier instructions~\cite{ARMv7A:2010}:
-
-\begin{description}
-\item	[\tco{DMB}] (data memory barrier) causes the specified type of
-	operations to \emph{appear} to have completed before any
-	subsequent operations of the same type.
-	The ``type'' of operations can be all operations or can be
-	restricted to only writes (similar to the Alpha \co{wmb}
-	and the POWER \co{eieio} instructions).
-	In addition, ARM allows cache coherence to have one of three
-	scopes: single processor, a subset of the processors
-	(``inner'') and global (``outer'').
-\item	[\tco{DSB}] (data synchronization barrier) causes the specified
-	type of operations to actually complete before any subsequent
-	operations (of any type) are executed.
-	The ``type'' of operations is the same as that of \co{DMB}.
-	The \co{DSB} instruction was called \co{DWB} (drain write buffer
-	or data write barrier, your choice) in early versions of the
-	ARM architecture.
-\item	[\tco{ISB}] (instruction synchronization barrier) flushes the CPU
-	pipeline, so that all instructions following the \co{ISB}
-	are fetched only after the \co{ISB} completes.
-	For example, if you are writing a self-modifying program
-	(such as a JIT), you should execute an \co{ISB} between
-	generating the code and executing it.
-\end{description}
-
-None of these instructions exactly match the semantics of Linux's
-\co{rmb()} primitive, which must therefore be implemented as a full
-\co{DMB}.
-The \co{DMB} and \co{DSB} instructions have a recursive definition
-of accesses ordered before and after the barrier, which has an effect
-similar to that of POWER's cumulativity.
-
-ARM also implements control dependencies, so that if a conditional
-branch depends on a load, then any store executed after that conditional
-branch will be ordered after the load.
-However, loads following the conditional branch will \emph{not}
-be guaranteed to be ordered unless there is an \co{ISB}
-instruction between the branch and the load.
-Consider the following example:
-
-\vspace{5pt}
-\begin{minipage}[t]{\columnwidth}
-\small
-\begin{verbatim}
-  1 r1 = x;
-  2 if (r1 == 0)
-  3   nop();
-  4 y = 1;
-  5 r2 = z;
-  6 ISB();
-  7 r3 = z;
-\end{verbatim}
-\end{minipage}
-\vspace{5pt}
-
-In this example, load-store control dependency ordering causes
-the load from \co{x} on line~1 to be ordered before the store to
-\co{y} on line~4.
-However, ARM does not respect load-load control dependencies, so that
-the load on line~1 might well happen \emph{after} the
-load on line~5.
-On the other hand, the combination of the conditional branch on line~2
-and the \co{ISB} instruction on line~6 ensures that
-the load on line~7 happens after the load on line~1.
-Note that inserting an additional \co{ISB} instruction somewhere between
-lines~3 and 4 would enforce ordering between lines~1 and 5.
-
-\subsection{IA64}
-
-IA64 offers a weak consistency model, so that in absence of explicit
-memory-barrier instructions, IA64 is within its rights to arbitrarily
-reorder memory references~\cite{IntelItanium02v2}.
-IA64 has a memory-fence instruction named {\tt mf}, but also has
-``half-memory fence'' modifiers to loads, stores, and to some of its atomic
-instructions~\cite{IntelItanium02v3}.
-The {\tt acq} modifier prevents subsequent memory-reference instructions
-from being reordered before the {\tt acq}, but permits
-prior memory-reference instructions to be reordered after the {\tt acq},
-as fancifully illustrated by Figure~\ref{fig:app:whymb:Half Memory Barrier}.
-Similarly, the {\tt rel} modifier prevents prior memory-reference
-instructions from being reordered after the {\tt rel}, but allows
-subsequent memory-reference instructions to be reordered before
-the {\tt rel}.
-
-\begin{figure}[tb]
-\centering
-\resizebox{2in}{!}{\includegraphics{cartoons/r-2014-LD-ACQ}}
-\caption{Half Memory Barrier}
-\ContributedBy{Figure}{fig:app:whymb:Half Memory Barrier}{Melissa Brossard}
-\end{figure}
-
-These half-memory fences are useful for critical sections, since
-it is safe to push operations into a critical section, but can be
-fatal to allow them to bleed out.
-However, as one of the only CPUs with this property,\footnote{
-	ARMv8 has recently added load-acquire and store-release instructions.}
-IA64 defines
-Linux's semantics of memory ordering associated with lock acquisition
-and release.
-
-The IA64 {\tt mf} instruction is used for the \co{smp_rmb()},
-\co{smp_mb()}, and \co{smp_wmb()} primitives in the Linux kernel.
-Oh, and despite rumors to the contrary, the ``mf'' mnemonic really
-does stand for ``memory fence''.
-
-Finally, IA64 offers a global total order for ``release'' operations,
-including the ``mf'' instruction.
-This provides the notion of transitivity, where if a given code fragment
-sees a given access as having happened, any later code fragment will
-also see that earlier access as having happened.
-Assuming, that is, that all the code fragments involved correctly use
-memory barriers.
-
-\subsection{MIPS}
-
-The MIPS memory model~\cite[Table 6.6]{MIPSvII-A-2015}
-appears to resemble that of ARM, IA64, and Power,
-being weakly ordered by default, but respecting dependencies.
-MIPS has a wide variety of memory-barrier instructions, but ties them
-not to hardware considerations, but rather to the use cases provided
-by the Linux kernel and the C++11 standard~\cite{RichardSmith2015N4527}
-in a manner similar to the ARM64 additions:
-
-\begin{description}[style=nextline]
-\item[\tco{SYNC}]
-	Full barrier for a number of hardware operations in addition
-	to memory references.
-\item[\tco{SYNC_WMB}]
-	Write memory barrier, which can be used to implement the
-	\co{smp_wmb()} primitive in the Linux kernel.
-\item[\tco{SYNC_MB}]
-	Full memory barrier, but only for memory operations.
-	This may be used to implement the Linux-kernel \co{smp_mb()}
-	and the C++ \co{atomic_thread_fence(memory_order_seq_cst)}.
-\item[\tco{SYNC_ACQUIRE}]
-	Acquire memory barrier, which may be used to implement the
-	Linux-kernel \co{smp_load_acquire()} and the C++
-	\co{atomic_load_explicit(..., memory_order_acquire)}.
-\item[\tco{SYNC_RELEASE}]
-	Release memory barrier, which may be used to implement the
-	Linux-kernel \co{smp_store_release()} and the C++
-	\co{atomic_store_explicit(..., memory_order_release)}.
-\item[\tco{SYNC_RMB}]
-	Read memory barrier, which can be used to implement the
-	\co{smp_rmb()} primitive in the Linux kernel.
-\end{description}
-
-Informal discussions with MIPS architects indicates that MIPS has a
-definition of transitivity or cumulativity similar to that of
-ARM and Power.
-However, it appears that different MIPS implementations can have
-different memory-ordering properties, so it is important to consult
-the documentation for the specific MIPS implementation you are using.
-
-\subsection{PA-RISC}
-
-Although the PA-RISC architecture permits full reordering of loads and
-stores, actual CPUs run fully ordered~\cite{GerryKane96a}.
-This means that the Linux kernel's memory-ordering primitives generate
-no code, however, they do use the gcc {\tt memory} attribute to disable
-compiler optimizations that would reorder code across the memory
-barrier.
-
-\subsection{POWER / PowerPC}
-\label{sec:app:whymb:POWER / PowerPC}
-
-The POWER and PowerPC\textsuperscript{\textregistered}
-CPU families have a wide variety of memory-barrier
-instructions~\cite{PowerPC94,MichaelLyons05a}:
-\begin{description}
-\item	[\tco{sync}] causes all preceding operations to {\em appear to have}
-	completed before any subsequent operations are started.
-	This instruction is therefore quite expensive.
-\item	[\tco{lwsync}] (light-weight sync) orders loads with respect to
-	subsequent loads and stores, and also orders stores.
-	However, it does {\em not} order stores with respect to subsequent
-	loads.
-	Interestingly enough, the {\tt lwsync} instruction enforces
-	the same ordering as does zSeries, and coincidentally,
-	SPARC TSO.
-	The \co{lwsync} instruction may be used to implement
-	load-acquire and store-release operations.
-\item	[\tco{eieio}] (enforce in-order execution of I/O, in case you
-	were wondering) causes all preceding cacheable stores to appear
-	to have completed before all subsequent stores.
-	However, stores to cacheable memory are ordered separately from
-	stores to non-cacheable memory, which means that {\tt eieio}
-	will not force an MMIO store to precede a spinlock release.
-\item	[\tco{isync}] forces all preceding instructions to appear to have
-	completed before any subsequent instructions start execution.
-	This means that the preceding instructions must have progressed
-	far enough that any traps they might generate have either happened
-	or are guaranteed not to happen, and that any side-effects of
-	these instructions (for example, page-table changes) are seen by the
-	subsequent instructions.
-\end{description}
-
-Unfortunately, none of these instructions line up exactly with Linux's
-{\tt wmb()} primitive, which requires {\em all} stores to be ordered,
-but does not require the other high-overhead actions of the {\tt sync}
-instruction.
-But there is no choice: ppc64 versions of {\tt wmb()} and {\tt mb()} are
-defined to be the heavyweight {\tt sync} instruction.
-However, Linux's \co{smp_wmb()} instruction is never used for MMIO
-(since a driver must carefully order MMIOs in UP as well as
-SMP kernels, after all), so it is defined to be the lighter weight
-{\tt eieio} instruction.
-This instruction may well be unique in having a five-vowel mnemonic.
-The \co{smp_mb()} instruction is also defined to be the {\tt sync}
-instruction, but both \co{smp_rmb()} and \co{rmb()} are defined to
-be the lighter-weight {\tt lwsync} instruction.
-
-Power features ``cumulativity'', which can be used to obtain
-transitivity.
-When used properly, any code seeing the results of an earlier
-code fragment will also see the accesses that this earlier code
-fragment itself saw.
-Much more detail is available from
-McKenney and Silvera~\cite{PaulEMcKenneyN2745r2009}.
-
-Power respects control dependencies in much the same way that ARM
-does, with the exception that the Power \co{isync} instruction
-is substituted for the ARM \co{ISB} instruction.
-
-Many members of the POWER architecture have incoherent instruction
-caches, so that a store to memory will not necessarily be reflected
-in the instruction cache.
-Thankfully, few people write self-modifying code these days, but JITs
-and compilers do it all the time.
-Furthermore, recompiling a recently run program looks just like
-self-modifying code from the CPU's viewpoint.
-The {\tt icbi} instruction (instruction cache block invalidate)
-invalidates a specified cache line from
-the instruction cache, and may be used in these situations.
-
-\subsection{SPARC RMO, PSO, and TSO}
-
-Solaris on SPARC uses TSO (total-store order), as does Linux when built for
-the ``sparc'' 32-bit architecture.
-However, a 64-bit Linux kernel (the ``sparc64'' architecture)
-runs SPARC in RMO (relaxed-memory order) mode~\cite{SPARC94}.
-The SPARC architecture also offers an intermediate PSO (partial store
-order).
-Any program that runs in RMO will also run in either PSO or TSO, and similarly,
-a program that runs in PSO will also run in TSO.
-Moving a shared-memory parallel program in the other direction may
-require careful insertion of memory barriers, although, as noted earlier,
-programs that make standard use of synchronization primitives need not
-worry about memory barriers.
-
-SPARC has a very flexible memory-barrier instruction~\cite{SPARC94}
-that permits fine-grained control of ordering:
-\begin{description}
-\item	[\tco{StoreStore}] orders preceding stores before subsequent stores.
-	(This option is used by the Linux \co{smp_wmb()} primitive.)
-\item	[\tco{LoadStore}] orders preceding loads before subsequent stores.
-\item	[\tco{StoreLoad}] orders preceding stores before subsequent loads.
-\item	[\tco{LoadLoad}] orders preceding loads before subsequent loads.
-	(This option is used by the Linux \co{smp_rmb()} primitive.)
-\item	[\tco{Sync}] fully completes all preceding operations before starting
-	any subsequent operations.
-\item	[\tco{MemIssue}] completes preceding memory operations before subsequent
-	memory operations, important for some instances of memory-mapped
-	I/O.
-\item	[\tco{Lookaside}] does the same as MemIssue,
-	but only applies to preceding stores
-	and subsequent loads, and even then only for stores and loads that
-	access the same memory location.
-\end{description}
-
-The Linux \co{smp_mb()} primitive uses the first four options together,
-as in
-\co{membar #LoadLoad | #LoadStore | #StoreStore | #StoreLoad},
-thus fully ordering memory operations.
-
-So, why is \qco{membar #MemIssue} needed?
-Because a \qco{membar #StoreLoad} could permit a subsequent
-load to get its value from a store buffer, which would be
-disastrous if the write was to an MMIO register that induced side effects
-on the value to be read.
-In contrast, \qco{membar #MemIssue} would wait until the store buffers
-were flushed before permitting the loads to execute,
-thereby ensuring that the load actually gets its value from the MMIO register.
-Drivers could instead use \qco{membar #Sync}, but the lighter-weight
-\qco{membar #MemIssue} is preferred in cases where the additional function
-of the more-expensive \qco{membar #Sync} are not required.
-
-The \qco{membar #Lookaside} is a lighter-weight version of
-\qco{membar #MemIssue}, which is useful when writing to a given MMIO register
-affects the value that will next be read from that register.
-However, the heavier-weight \qco{membar #MemIssue} must be used when
-a write to a given MMIO register affects the value that will next be
-read from {\em some other} MMIO register.
-
-It is not clear why SPARC does not define \co{wmb()} to be
-\qco{membar #MemIssue} and \co{smp_wmb()} to be
-\qco{membar #StoreStore},
-as the current definitions seem vulnerable to bugs in some drivers.
-It is quite possible that all the SPARC CPUs that Linux runs on
-implement a more conservative memory-ordering model than the architecture
-would permit.
-
-SPARC requires a {\tt flush} instruction be used between the time that
-an instruction is stored and executed~\cite{SPARC94}.
-This is needed to flush any prior value for that location from
-the SPARC's instruction cache.
-Note that {\tt flush} takes an address, and will flush only that address
-from the instruction cache.
-On SMP systems, all CPUs' caches are flushed, but there is no
-convenient way to determine when the off-CPU flushes complete,
-though there is a reference to an implementation note.
-
-\subsection{x86}
-
-Since the x86 CPUs provide ``process ordering'' so that all CPUs agree
-on the order of a given CPU's writes to memory, the \co{smp_wmb()} primitive
-is a no-op for the CPU~\cite{IntelXeonV3-96a}.
-However, a compiler directive is required to
-prevent the compiler from performing optimizations that would result
-in reordering across the \co{smp_wmb()} primitive.
-
-On the other hand, x86 CPUs have traditionally given
-no ordering guarantees for loads, so
-the \co{smp_mb()} and \co{smp_rmb()} primitives expand to {\tt lock;addl}.
-This atomic instruction acts as a barrier to both loads and stores.
-
-Intel has also published a memory model for
-x86~\cite{Intelx86MemoryOrdering2007}.
-It turns out that Intel's actual CPUs enforced tighter ordering than
-was claimed in the previous specifications, so this model is in effect
-simply mandating the earlier de-facto behavior.
-Even more recently, Intel published an updated memory model for
-x86~\cite[Section 8.2]{Intel64IA32v3A2011}, which mandates a total global order
-for stores, although individual CPUs are still permitted to see their
-own stores as having happened earlier than this total global order
-would indicate.
-This exception to the total ordering is needed to allow important
-hardware optimizations involving store buffers.
-In addition, memory ordering obeys causality, so that if CPU~0 sees a
-store by CPU~1, then CPU~0 is guaranteed to see all stores that CPU~1
-saw prior to its store.
-Software may use atomic operations to override these hardware optimizations,
-which is one reason that atomic operations tend to be more expensive
-than their non-atomic counterparts.
-This total store order is \emph{not} guaranteed on older processors.
-
-It is also important to note that atomic instructions operating
-on a given memory location should all be of the same
-size~\cite[Section 8.1.2.2]{Intel64IA32v3A2011}.
-For example, if you write a program where one CPU atomically increments
-a byte while another CPU executes a 4-byte atomic increment on
-that same location, you are on your own.
-
-However, note that some SSE instructions are weakly ordered ({\tt clflush}
-and non-temporal move instructions~\cite{IntelXeonV2b-96a}).
-CPUs that have SSE can use {\tt mfence} for \co{smp_mb()},
-{\tt lfence} for \co{smp_rmb()}, and {\tt sfence} for \co{smp_wmb()}.
-
-A few versions of the x86 CPU have a mode bit that enables out-of-order
-stores, and for these CPUs, \co{smp_wmb()} must also be defined to
-be {\tt lock;addl}.
-
-Although newer x86 implementations accommodate self-modifying code
-without any special instructions, to be fully compatible with
-past and potential future x86 implementations, a given CPU must
-execute a jump instruction or a serializing instruction (e.g., \co{cpuid})
-between modifying the code and executing
-it~\cite[Section 8.1.3]{Intel64IA32v3A2011}.
-
-\subsection{zSeries}
-
-The zSeries machines make up the IBM\textsuperscript{\texttrademark}
-mainframe family, previously
-known as the 360, 370, and 390~\cite{IBMzSeries04a}.
-Parallelism came late to zSeries, but given that these mainframes first
-shipped in the mid 1960s, this is not saying much.
-The \qco{bcr 15,0} instruction is used for the Linux \co{smp_mb()},
-\co{smp_rmb()}, and \co{smp_wmb()} primitives.
-It also has comparatively strong memory-ordering semantics, as shown in
-Table~\ref{tab:app:whymb:Summary of Memory Ordering}, which should allow the
-\co{smp_wmb()} primitive to be a {\tt nop} (and by the time you read this,
-this change may well have happened).
-The table actually understates the situation, as the zSeries memory model
-is otherwise sequentially consistent, meaning that all CPUs
-will agree on the order of unrelated stores from different CPUs.
-
-As with most CPUs, the zSeries architecture does not guarantee a
-cache-coherent instruction stream, hence,
-self-modifying code must execute a serializing instruction between updating
-the instructions and executing them.
-That said, many actual zSeries machines do in fact accommodate self-modifying
-code without serializing instructions.
-The zSeries instruction set provides a large set of serializing instructions,
-including compare-and-swap, some types of branches (for example, the
-aforementioned \qco{bcr 15,0} instruction), and test-and-set,
-among others.
 
 \section{Are Memory Barriers Forever?}
 \label{sec:app:whymb:Are Memory Barriers Forever?}
@@ -2406,7 +1618,7 @@ requirements presented both by battery-operated devices and by
 environmental responsibility.
 
 Who is right?
-We have no clue, so are preparing to live with either scenario.
+We have no clue, so we are preparing to live with either scenario.
 
 \section{Advice to Hardware Designers}
 \label{sec:app:whymb:Advice to Hardware Designers}
@@ -2441,7 +1653,10 @@ future such problems:
 	It is my painful duty to inform you that as embedded systems
 	move to multicore architectures, we will no doubt see a fair
 	number of such problems arise.
-	Hopefully these problems will clear up by the year 2015.
+	By the year 2021, there were some efforts to address
+	these problems with new interconnect standards, with some
+	debate as to how effective these standards will really
+	be~\cite{WilliamGWong2019CCIX-CXL}.
 
 \item	Device interrupts that ignore cache coherence.
 
@@ -2458,7 +1673,7 @@ future such problems:
 	By the time the system gets around to dumping the offending
 	input buffer, the DMA will most likely have completed.
 
-\item	Inter-processor interrupts (IPIs) that ignore cache coherence.
+\item	\IXAcrfpl{ipi} that ignore cache coherence.
 
 	This can be problematic if the IPI reaches its destination
 	before all of the cache lines in the corresponding message
@@ -2486,3 +1701,5 @@ future such problems:
 \end{enumerate}
 
 Again, we encourage hardware designers to avoid these practices!
+
+\QuickQuizAnswersChp{qqzwhymb}

@@ -1,21 +1,23 @@
 % intro/intro.tex
+% mainfile: ../perfbook.tex
 % SPDX-License-Identifier: CC-BY-SA-3.0
 
-\QuickQuizChapter{chp:Introduction}{Introduction}
+\QuickQuizChapter{chp:Introduction}{Introduction}{qqzintro}
 %
-\Epigraph{If parallel programming is so hard, why are there any
+\Epigraph{If parallel programming is so hard, why are there so many
 	  parallel programs?}{\emph{Unknown}}
 
 Parallel programming has earned a reputation as one of the most
 difficult areas a hacker can tackle.
-Papers and textbooks warn of the perils of deadlock, livelock,
-race conditions, non-determinism, Amdahl's-Law limits to scaling,
+Papers and textbooks warn of the perils of \IX{deadlock}, \IX{livelock},
+\IXpl{race condition}, non-determinism,
+\IXaltr{Amdahl's-Law}{Amdahl's Law} limits to scaling,
 and excessive realtime latencies.
 And these perils are quite real; we authors have accumulated uncounted
-% 2009:
-%	19 for Paul E. McKenney
-years of experience dealing with them, and all of the emotional scars,
-grey hairs, and hair loss that go with such experiences.
+% 2020:
+%	30 for Paul E. McKenney
+years of experience along with the resulting emotional scars,
+grey hairs, and hair loss.
 
 However, new technologies that are difficult to use at introduction
 invariably become easier over time.
@@ -28,7 +30,7 @@ due to automatic transmissions, automatic chokes, automatic starters,
 greatly improved reliability,
 and a host of other technological improvements.
 
-The same is true of a many other technologies, including computers.
+The same is true for many other technologies, including computers.
 It is no longer necessary to operate a keypunch in order to program.
 Spreadsheets allow most non-programmers to get results from their computers
 that would have required a team of specialists a few decades ago.
@@ -39,25 +41,29 @@ social-networking tools.
 As recently as 1968, such content creation was a far-out research
 project~\cite{DouglasEngelbart1968}, described at
 the time as
-``like a UFO landing on the White House lawn''\cite{ScottGriffen2000}.
+``like a UFO landing on the White House lawn''~\cite{ScottGriffen2000}.
 % http://www.ibiblio.org/pioneers/engelbart.html
 % http://www.histech.rwth-aachen.de/www/quellen/engelbart/ahi62index.html
 
 Therefore, if you wish to argue that parallel programming will remain
 as difficult as it is currently perceived by many to be, it is you
 who bears the burden of proof, keeping in mind the many centuries of
-counter-examples in a variety of fields of endeavor.
+counter-examples in many fields of endeavor.
 
 \section{Historic Parallel Programming Difficulties}
 \label{sec:intro:Historic Parallel Programming Difficulties}
+%
+\epigraph{Not the power to remember, but its very opposite, the power to
+	  forget, is a necessary condition for our existence.}
+	 {\emph{Sholem Asch}}
 
 As indicated by its title, this book takes a different approach.
 Rather than complain about the difficulty of parallel programming,
 it instead examines the reasons why parallel programming is
 difficult, and then works to help the reader to overcome these
 difficulties.
-As will be seen, these difficulties have fallen into several categories,
-including:
+As will be seen, these difficulties have historically fallen into several
+categories, including:
 
 \begin{enumerate}
 \item	The historic high cost and relative rarity of parallel systems.
@@ -72,12 +78,12 @@ including:
 
 Many of these historic difficulties are well on the way to being overcome.
 First, over the past few decades, the cost of parallel systems
-has decreased from many multiples of that of a house to a fraction of
-that of a bicycle, courtesy of Moore's Law.
+has decreased from many multiples of that of a house to that of a
+modest meal, courtesy of \IXr{Moore's Law}.
 Papers calling out the advantages of multicore CPUs were published
 as early as 1996~\cite{Olukotun96}.
 IBM introduced simultaneous multi-threading
-into its high-end POWER family in 2000, and multicore in 2001.
+into its high-end \Power{} family in 2000, and multicore in 2001.
 Intel introduced hyperthreading into its commodity Pentium line in
 November 2000, and both AMD and Intel introduced
 dual-core CPUs in 2005.
@@ -86,11 +92,13 @@ In fact, by 2008, it was becoming difficult
 to find a single-CPU desktop system, with single-core CPUs being
 relegated to netbooks and embedded devices.
 By 2012, even smartphones were starting to sport multiple CPUs.
+By 2020, safety-critical software standards started addressing
+concurrency.
 
 Second, the advent of low-cost and readily available multicore systems
 means that the once-rare experience of parallel programming is
 now available to almost all researchers and practitioners.
-In fact, parallel systems are now well within the budget of students
+In fact, parallel systems have long been within the budget of students
 and hobbyists.
 We can therefore expect greatly increased levels of invention and
 innovation surrounding parallel systems, and that increased familiarity
@@ -110,32 +118,33 @@ provide much material suitable for user-level applications.
 
 Fourth, even though the large-scale parallel\-/programming projects of
 the 1980s and 1990s were almost all proprietary projects, these
-projects have seeded other communities with a cadre of developers who
+projects have seeded other communities with cadres of developers who
 understand the engineering discipline required to develop production-quality
 parallel code.
 A major purpose of this book is to present this engineering discipline.
 
 Unfortunately, the fifth difficulty, the high cost of communication
 relative to that of processing, remains largely in force.
-Although this difficulty has been receiving increasing attention during
-the new millennium, according to Stephen Hawking,
+This difficulty has been receiving increasing attention during
+the new millennium.
+However, according to \ppl{Stephen}{Hawking},
 the finite speed of light and the atomic
-nature of matter is likely to limit progress in this
+nature of matter will limit progress in this
 area~\cite{BryanGardiner2007,GordonMoore03a}.
 Fortunately, this difficulty has been in force since the late 1980s,
 so that the aforementioned engineering discipline has evolved practical
 and effective strategies for handling it.
 In addition, hardware designers are increasingly aware of these issues,
-so perhaps future hardware will be more friendly to parallel software
-as discussed in Section~\ref{sec:cpu:Hardware Free Lunch?}.
+so perhaps future hardware will be more friendly to parallel software,
+as discussed in \cref{sec:cpu:Hardware Free Lunch?}.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Come on now!!!
 	Parallel programming has been known to be exceedingly
 	hard for many decades.
 	You seem to be hinting that it is not so hard.
 	What sort of game are you playing?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	If you really believe that parallel programming is exceedingly
 	hard, then you should have a ready answer to the question
 	``Why is parallel programming hard?''
@@ -161,10 +170,10 @@ as discussed in Section~\ref{sec:cpu:Hardware Free Lunch?}.
 	worked for an employer who either manufactured or could afford to
 	purchase machines costing upwards of \$100,000---in 1991 dollars US.
 
-	In contrast, in 2006, Paul finds himself typing these words on a
-	dual-core x86 laptop.
+	In contrast, in 2020, Paul finds himself typing these words on a
+	six-core x86 laptop.
 	Unlike the dual-80486 CPU boards, this laptop also contains
-	2\,GB of main memory, a 60\,GB disk drive, a display, Ethernet,
+	64\,GB of main memory, a 1\,TB solid-state disk, a display, Ethernet,
 	USB ports, wireless, and Bluetooth.
 	And the laptop is more than an order of magnitude cheaper than
 	even one of those dual-80486 CPU boards, even before taking inflation
@@ -187,16 +196,16 @@ as discussed in Section~\ref{sec:cpu:Hardware Free Lunch?}.
 		sequential programming, for example, parallel validation
 		is more difficult.
 		But no longer mind-crushingly difficult.}
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 However, even though parallel programming might not be as hard as
 is commonly advertised, it is often more work than is sequential
 programming.
 
-\QuickQuiz{}
+\QuickQuiz{
 	How could parallel programming \emph{ever} be as easy
 	as sequential programming?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	It depends on the programming environment.
 	SQL~\cite{DIS9075SQL92} is an underappreciated success
 	story, as it permits programmers who know nothing about parallelism
@@ -211,7 +220,9 @@ programming.
 	Finally, on Linux and UNIX systems, consider the following
 	shell command:
 
-	{\small \tt get\_input | grep "interesting" | sort}
+	\begin{VerbatimU}
+	get_input | grep "interesting" | sort
+	\end{VerbatimU}
 
 	This shell pipeline runs the \co{get_input}, \co{grep},
 	and \co{sort} processes in parallel.
@@ -220,7 +231,7 @@ programming.
 	In short, parallel programming is just as easy as sequential
 	programming---at least in those environments that hide the parallelism
 	from the user!
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 It therefore makes sense to consider alternatives to parallel programming.
 However, it is not possible to reasonably consider parallel-programming
@@ -229,14 +240,17 @@ This topic is addressed in the next section.
 
 \section{Parallel Programming Goals}
 \label{sec:intro:Parallel Programming Goals}
+%
+\epigraph{If you don't know where you are going, you will end up somewhere
+	  else.}{\emph{Yogi Berra}}
 
 The three major goals of parallel programming (over and above those
 of sequential programming) are as follows:
 
 \begin{enumerate}
-\item	Performance.
-\item	Productivity.
-\item	Generality.
+\item	\IX{Performance}.
+\item	\IX{Productivity}.
+\item	\IX{Generality}.
 \end{enumerate}
 
 Unfortunately, given the current state of the art, it is possible to
@@ -247,47 +261,49 @@ a triangle upon which overly optimistic hopes all too often come to
 grief.\footnote{
 	Kudos to Michael Wong for naming the iron triangle.}
 
-\QuickQuiz{}
+\QuickQuizSeries{%
+\QuickQuizB{
 	Oh, really???
 	What about correctness, maintainability, robustness, and so on?
-\QuickQuizAnswer{
+}\QuickQuizAnswerB{
 	These are important goals, but they are just as important for
 	sequential programs as they are for parallel programs.
 	Therefore, important though they are, they do not belong on
 	a list specific to parallel programming.
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndB
+%
+\QuickQuizM{
 	And if correctness, maintainability, and robustness don't
 	make the list, why do productivity and generality?
-\QuickQuizAnswer{
+}\QuickQuizAnswerM{
 	Given that parallel programming is perceived to be much harder
 	than sequential programming, productivity is tantamount and
 	therefore must not be omitted.
 	Furthermore, high-productivity parallel-programming environments
-	such as SQL serve a special purpose, hence generality must
+	such as SQL serve a specific purpose, hence generality must
 	also be added to the list.
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndM
+%
+\QuickQuizM{
 	Given that parallel programs are much harder to prove
 	correct than are sequential programs, again, shouldn't
 	correctness \emph{really} be on the list?
-\QuickQuizAnswer{
+}\QuickQuizAnswerM{
 	From an engineering standpoint, the difficulty in proving
 	correctness, either formally or informally, would be important
 	insofar as it impacts the primary goal of productivity.
 	So, in cases where correctness proofs are important, they
 	are subsumed under the ``productivity'' rubric.
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndM
+%
+\QuickQuizE{
 	What about just having fun?
-\QuickQuizAnswer{
+}\QuickQuizAnswerE{
 	Having fun is important as well, but, unless you are a hobbyist,
 	would not normally be a \emph{primary} goal.
 	On the other hand, if you \emph{are} a hobbyist, go wild!
-} \QuickQuizEnd
+}\QuickQuizEndE
+}
 
 Each of these goals is elaborated upon in the following sections.
 
@@ -300,10 +316,10 @@ a favor:  Just write sequential code, and be happy?
 It will very likely be easier
 and you will probably get done much more quickly.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Are there no cases where parallel programming is about something
 	other than performance?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	There certainly are cases where the problem to be solved is
 	inherently parallel, for example, Monte Carlo methods and
 	some numerical computations.
@@ -316,13 +332,13 @@ and you will probably get done much more quickly.
 	and vote on the result.
 	In extreme cases, the three systems will be independently
 	implemented using different algorithms and technologies.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
-Note that ``performance'' is interpreted quite broadly here,
-including scalability (performance per CPU) and efficiency
-(for example, performance per watt).
+Note that ``performance'' is interpreted broadly here,
+including for example scalability (performance per CPU) and efficiency
+(performance per watt).
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{SMPdesign/clockfreq}}
 \caption{MIPS/Clock-Frequency Trend for Intel CPUs}
@@ -331,11 +347,11 @@ including scalability (performance per CPU) and efficiency
 
 That said, the focus of performance has shifted from hardware to
 parallel software.
-This change in focus is due to the fact that, although Moore's Law
+This change in focus is due to the fact that, although \IXr{Moore's Law}
 continues to deliver increases in transistor density, it has ceased to
 provide the traditional single-threaded performance increases.
 This can be seen in
-Figure~\ref{fig:intro:Clock-Frequency Trend for Intel CPUs}\footnote{
+\cref{fig:intro:Clock-Frequency Trend for Intel CPUs}\footnote{
 	This plot shows clock frequencies for newer CPUs theoretically
 	capable of retiring one or more instructions per clock, and MIPS
 	(millions of instructions per second, usually from the old
@@ -353,8 +369,18 @@ which shows that writing single-threaded code and simply waiting
 a year or two for the CPUs to catch up may no longer be an option.
 Given the recent trends on the part of all major manufacturers towards
 multicore/multithreaded systems, parallelism is the way to go for
-those wanting the avail themselves of the full performance of their
+those wanting to avail themselves of the full performance of their
 systems.
+
+\QuickQuiz{
+	Why not instead rewrite programs from inefficient scripting
+	languages to C or C++?
+}\QuickQuizAnswer{
+	If the developers, budget, and time is available for such a
+	rewrite, and if the result will attain the required levels
+	of performance on a single CPU, this can be a reasonable
+	approach.
+}\QuickQuizEnd
 
 Even so, the first goal is performance rather than scalability,
 especially given that the easiest way to attain linear scalability
@@ -388,12 +414,12 @@ sequential case when analyzing the performance of parallel algorithms.
 \subsection{Productivity}
 \label{sec:intro:Productivity}
 
-\QuickQuiz{}
+\QuickQuiz{
 	Why all this prattling on about non-technical issues???
 	And not just \emph{any} non-technical issue, but \emph{productivity}
 	of all things?
 	Who cares?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	If you are a pure hobbyist, perhaps you don't need to care.
 	But even pure hobbyists will often care about how much they
 	can get done, and how quickly.
@@ -407,14 +433,14 @@ sequential case when analyzing the performance of parallel algorithms.
 
 	Besides, if you \emph{really} didn't care about productivity,
 	you would be doing it by hand rather than using a computer!
-} \QuickQuizEnd
+}\QuickQuizEnd
 
-Productivity has been becoming increasingly important in recent decades.
+\IX{Productivity} has been becoming increasingly important in recent decades.
 To see this, consider that the price of early computers was tens
 of millions of dollars at
 a time when engineering salaries were but a few thousand dollars a year.
 If dedicating a team of ten engineers to such a machine would improve
-its performance, even by only 10\%, then their salaries
+its performance, even by only 10\,\%, then their salaries
 would be repaid many times over.
 
 One such machine was the CSIRAC, the oldest still-intact stored-program
@@ -432,13 +458,13 @@ little computing power.
 Perhaps the closest equivalents
 are 8-bit embedded microprocessors exemplified by the venerable
 Z80~\cite{z80Wikipedia}, but even the old Z80 had a CPU clock
-frequency more than 1,000 times faster than the CSIRAC.
+frequency more than 1,000 times faster than the CSIRAC\@.
 The Z80 CPU had 8,500 transistors, and could be purchased in 2008
 for less than \$2 US per unit in 1,000-unit quantities.
 In stark contrast to the CSIRAC, software-development costs are
 anything but insignificant for the Z80.
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{SMPdesign/mipsperbuck}}
 \caption{MIPS per Die for Intel CPUs}
@@ -447,12 +473,13 @@ anything but insignificant for the Z80.
 
 The CSIRAC and the Z80 are two points in a long-term trend, as can be
 seen in
-Figure~\ref{fig:intro:MIPS per Die for Intel CPUs}.
+\cref{fig:intro:MIPS per Die for Intel CPUs}.
 This figure plots an approximation to computational power per die
-over the past three decades, showing a consistent four-order-of-magnitude
-increase.
+over the past four decades, showing an impressive six-order-of-magnitude
+increase over a period of forty years.
 Note that the advent of multicore CPUs has permitted this increase to
-continue unabated despite the clock-frequency wall encountered in 2003.
+continue apace despite the clock-frequency wall encountered in 2003,
+albeit courtesy of dies supporting more than 50 hardware threads each.
 
 One of the inescapable consequences of the rapid decrease in
 the cost of hardware is that software productivity becomes increasingly
@@ -465,10 +492,10 @@ parallel hardware has become a low-cost commodity only recently.
 Therefore, only recently has high productivity become critically important
 when creating parallel software.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Given how cheap parallel systems have become, how can anyone
 	afford to pay people to program them?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	There are a number of answers to this question:
 	\begin{enumerate}
 	\item	Given a large computational cluster of parallel machines,
@@ -486,20 +513,20 @@ when creating parallel software.
 		piece of equipment might easily justify substantial
 		developer effort.
 	\item	If the software for the low-cost parallel machine produces an
-		extremely valuable result (e.g., mineral exploration),
-		then the valuable result might again justify substantial
+		extremely valuable result (e.g., energy savings),
+		then this valuable result might again justify substantial
 		developer cost.
 	\item	Safety-critical systems protect lives, which can clearly
 		justify very large developer effort.
-	\item	Hobbyists and researchers might seek knowledge, experience,
-		fun, or glory rather than gold.
+	\item	Hobbyists and researchers might instead seek knowledge,
+		experience, fun, or glory.
 	\end{enumerate}
 	So it is not the case that the decreasing cost of hardware renders
 	software worthless, but rather that it is no longer possible to
 	``hide'' the cost of software development within the cost of
 	the hardware, at least not unless there are extremely large
 	quantities of hardware.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 Perhaps at one time, the sole purpose of parallel software was performance.
 Now, however, productivity is gaining the spotlight.
@@ -508,7 +535,7 @@ Now, however, productivity is gaining the spotlight.
 \label{sec:intro:Generality}
 
 One way to justify the high cost of developing parallel software
-is to strive for maximal generality.
+is to strive for maximal \IX{generality}.
 All else being equal, the cost of a more-general software artifact
 can be spread over more users than that of a less-general one.
 In fact, this economic force explains much of the maniacal focus
@@ -545,7 +572,8 @@ programming environments:
 	Its productivity is believed by many to be even lower than that
 	of C/C++ ``locking plus threads'' environments.
 \item[OpenMP:] This set of compiler directives can be used
-	to parallelize loops.  It is thus quite specific to this
+	to parallelize loops.
+	It is thus quite specific to this
 	task, and this specificity often limits its performance.
 	It is, however, much easier to use than MPI or C/C++
 	``locking plus threads.''
@@ -560,11 +588,11 @@ programming environments:
 	programming concepts.
 \end{description}
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
-\resizebox{3in}{!}{\includegraphics{intro/PPGrelation}}
+\resizebox{2.5in}{!}{\includegraphics{intro/PPGrelation}}
 \caption{Software Layers and Performance, Productivity, and Generality}
-\label{fig:intro:Software Layers and Performance, Productivity, and Generality}
+\label{fig:intro:Software Layers and Performance; Productivity; and Generality}
 \end{figure}
 
 The nirvana of parallel programming environments, one that offers
@@ -573,7 +601,7 @@ not yet exist.
 Until such a nirvana appears, it will be necessary to make engineering
 tradeoffs among performance, productivity, and generality.
 One such tradeoff is shown in
-Figure~\ref{fig:intro:Software Layers and Performance, Productivity, and Generality},
+\cref{fig:intro:Software Layers and Performance; Productivity; and Generality},
 which shows how productivity becomes increasingly important at the upper layers
 of the system stack,
 while performance and generality become increasingly important at the
@@ -586,11 +614,11 @@ recovered further up the stack.
 In the upper layers of the stack, there might be very few users for a given
 specific application, in which case productivity concerns are paramount.
 This explains the tendency towards ``bloatware'' further up the stack:
-extra hardware is often cheaper than the extra developers.
+Extra hardware is often cheaper than extra developers.
 This book is intended for developers working near the bottom
-of the stack, where performance and generality are of great concern.
+of the stack, where performance and generality are of greatest concern.
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{intro/Generality}}
 \caption{Tradeoff Between Productivity and Generality}
@@ -605,17 +633,17 @@ many things besides driving nails.
 It should therefore be no surprise to see similar tradeoffs
 appear in the field of parallel computing.
 This tradeoff is shown schematically in
-Figure~\ref{fig:intro:Tradeoff Between Productivity and Generality}.
+\cref{fig:intro:Tradeoff Between Productivity and Generality}.
 Here, users~1, 2, 3, and 4 have specific jobs that they need the computer
 to help them with.
 The most productive possible language or environment for a given user is one
 that simply does that user's job, without requiring any programming,
 configuration, or other setup.
 
-\QuickQuiz{}
+\QuickQuiz{
 	This is a ridiculously unachievable ideal!
 	Why not focus on something that is achievable in practice?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	This is eminently achievable.
 	The cellphone is a computer that can be used to make phone
 	calls and to send and receive text messages with little or
@@ -631,7 +659,7 @@ configuration, or other setup.
 	software stack.
 	This fact of life even has its own acronym: YAGNI, or ``You
 	Ain't Gonna Need It.''
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 Unfortunately, a system that does the job required by user~1 is
 unlikely to do user~2's job.
@@ -643,16 +671,15 @@ to the hardware system (for example, low-level languages such as
 assembly, C, C++, or Java) or to some abstraction (for example,
 Haskell, Prolog, or Snobol), as is shown by the circular region near
 the center of
-Figure~\ref{fig:intro:Tradeoff Between Productivity and Generality}.
+\cref{fig:intro:Tradeoff Between Productivity and Generality}.
 These languages can be considered to be general in the sense that they
 are equally ill-suited to the jobs required by users~1, 2, 3, and 4.
-In other words, their generality is purchased at the expense of
+In other words, their generality comes at the expense of
 decreased productivity when compared to domain-specific languages
 and environments.
 Worse yet, a language that is tailored to a given abstraction
-is also likely to suffer from performance and scalability problems
-unless and until someone figures out how to efficiently map that
-abstraction to real hardware.
+is likely to suffer from performance and scalability problems
+unless and until it can be efficiently mapped to real hardware.
 
 Is there no escape from iron triangle's three conflicting goals of
 performance, productivity, and generality?
@@ -664,11 +691,14 @@ it is not always the best tool for the job.
 
 \section{Alternatives to Parallel Programming}
 \label{sec:intro:Alternatives to Parallel Programming}
+%
+\epigraph{Experiment is folly when experience shows the way.}
+	 {\emph{Roger M. Babson}}
 
 In order to properly consider alternatives to parallel programming,
 you must first decide on what exactly you expect the parallelism
 to do for you.
-As seen in Section~\ref{sec:intro:Parallel Programming Goals},
+As seen in \cref{sec:intro:Parallel Programming Goals},
 the primary goals of parallel programming are performance, productivity,
 and generality.
 Because this book is intended for developers working on
@@ -683,7 +713,7 @@ order of difficulty:
 \begin{enumerate}
 \item	Run multiple instances of a sequential application.
 \item	Make the application use existing parallel software.
-\item	Apply performance optimization to the serial application.
+\item	Optimize the serial application.
 \end{enumerate}
 
 These approaches are covered in the following sections.
@@ -706,7 +736,7 @@ In some cases, this approach can be easily extended to a cluster of
 machines.
 
 This approach may seem like cheating, and in fact some denigrate such
-programs as ``embarrassingly parallel''.
+programs as ``\IX{embarrassingly parallel}''.
 And in fact, this approach does have some potential disadvantages,
 including increased memory consumption, waste of CPU cycles recomputing
 common intermediate results, and increased copying of data.
@@ -721,10 +751,10 @@ can present a single-threaded programming environment,
 including relational
 databases~\cite{Date82},
 web-application servers, and map-reduce environments.
-For example, a common design provides a separate program for each
-user, each of which generates SQL programs.
-These per-user SQL programs are run concurrently against a common
-relational database, which automatically runs the users' queries concurrently.
+For example, a common design provides a separate process for each
+user, each of which generates SQL from user queries.
+This per-user SQL is run against a common relational database, which
+automatically runs the users' queries concurrently.
 The per-user programs are responsible only for the user interface,
 with the relational database taking full responsibility for the
 difficult issues surrounding parallelism and persistence.
@@ -740,25 +770,25 @@ compared to carefully hand-coding a fully parallel application.
 However, such sacrifice is often well repaid by a huge reduction in
 development effort.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Wait a minute!
 	Doesn't this approach simply shift the development effort from
 	you to whoever wrote the existing parallel software you are using?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Exactly!
 	And that is the whole point of using existing software.
 	One team's work can be used by many other teams, resulting in a
 	large decrease in overall effort compared to all teams
 	needlessly reinventing the wheel.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 \subsection{Performance Optimization}
 \label{sec:intro:Performance Optimization}
 
-Up through the early 2000s, CPU performance was doubling every 18 months.
-In such an environment, it is often much more important to create new
-functionality than to do careful performance optimization.
-Now that Moore's Law is ``only'' increasing transistor density instead
+Up through the early 2000s, CPU clock frequencies doubled every 18 months.
+It was therefore usually more important to create new functionality than to
+carefully optimize performance.
+Now that \IXr{Moore's Law} is ``only'' increasing transistor density instead
 of increasing both transistor density and per-transistor performance,
 it might be a good time to rethink the importance of performance
 optimization.
@@ -771,7 +801,7 @@ optimization, albeit one that is becoming much more attractive
 as parallel systems become cheaper and more readily available.
 However, it is wise to keep in mind that the speedup available from
 parallelism is limited to roughly the number of CPUs
-(but see Section~\ref{sec:SMPdesign:Beyond Partitioning}
+(but see \cref{sec:SMPdesign:Beyond Partitioning}
 for an interesting exception).
 In contrast, the speedup available from traditional single-threaded
 software optimizations can be much larger.
@@ -794,27 +824,32 @@ sequentially on a rotating disk, parallelizing your program might
 well make it a lot slower due to the added seek overhead.
 You should instead optimize the data layout so that
 the file can be smaller (thus faster to read), split the file into chunks
-which can be accessed in parallel from different drives, 
+which can be accessed in parallel from different drives,
 cache frequently accessed data in main memory,
 or, if possible,
 reduce the amount of data that must be read.
 
-\QuickQuiz{}
+\QuickQuiz{
 	What other bottlenecks might prevent additional CPUs from
 	providing additional performance?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	There are any number of potential bottlenecks:
 	\begin{enumerate}
-	\item	Main memory.  If a single thread consumes all available
+	\item	Main memory.
+		If a single thread consumes all available
 		memory, additional threads will simply page themselves
 		silly.
-	\item	Cache.  If a single thread's cache footprint completely
+	\item	Cache.
+		If a single thread's cache footprint completely
 		fills any shared CPU cache(s), then adding more threads
-		will simply thrash those affected caches.
-	\item	Memory bandwidth.  If a single thread consumes all available
+		will simply thrash those affected caches, as will be
+		seen in \cref{chp:Data Structures}.
+	\item	Memory bandwidth.
+		If a single thread consumes all available
 		memory bandwidth, additional threads will simply
 		result in additional queuing on the system interconnect.
-	\item	I/O bandwidth.  If a single thread is I/O bound,
+	\item	I/O bandwidth.
+		If a single thread is I/O bound,
 		adding more threads will simply result in them all
 		waiting in line for the affected I/O resource.
 	\end{enumerate}
@@ -823,7 +858,7 @@ reduce the amount of data that must be read.
 	bottlenecks.
 	The fact is that every resource which is shared between
 	multiple CPUs or threads is a potential bottleneck.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 Parallelism can be a powerful optimization technique, but
 it is not the only such technique, nor is it appropriate for all
@@ -836,6 +871,9 @@ programming so difficult?''
 
 \section{What Makes Parallel Programming Hard?}
 \label{sec:intro:What Makes Parallel Programming Hard?}
+%
+\epigraph{Real difficulties can be overcome; it is only the imaginary
+	  ones that are unconquerable.}{\emph{Theodore N.~Vail}}
 
 \OriginallyPublished{Section}{sec:intro:What Makes Parallel Programming Hard?}{What Makes Parallel Programming Hard?}{a Portland State University Technical Report}{PaulEMcKenney2009ProgrammingHard}
 
@@ -863,15 +901,15 @@ been extremely narrowly focused, and hence unable to demonstrate any
 general results.
 Furthermore, given that the normal range of programmer productivity
 spans more than an order of magnitude, it is unrealistic to expect
-an affordable study to be capable of detecting (say) a 10\% difference
+an affordable study to be capable of detecting (say) a 10\,\% difference
 in productivity.
 Although the multiple-order-of-magnitude differences that such studies
 \emph{can} reliably detect are extremely valuable, the most impressive
-improvements tend to be based on a long series of 10\% improvements.
+improvements tend to be based on a long series of 10\,\% improvements.
 
 We must therefore take a different approach.
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{intro/FourTaskCategories}}
 \caption{Categories of Tasks Required of Parallel Programmers}
@@ -883,7 +921,7 @@ programmers must undertake that are not required of sequential programmers.
 We can then evaluate how well a given programming language or environment
 assists the developer with these tasks.
 These tasks fall into the four categories shown in
-Figure~\ref{fig:intro:Categories of Tasks Required of Parallel Programmers},
+\cref{fig:intro:Categories of Tasks Required of Parallel Programmers},
 each of which is covered in the following sections.
 
 \subsection{Work Partitioning}
@@ -892,7 +930,7 @@ each of which is covered in the following sections.
 Work partitioning is absolutely required for parallel execution:
 if there is but one ``glob'' of work, then it can be executed by at
 most one CPU at a time, which is by definition sequential execution.
-However, partitioning the code requires great care.
+However, partitioning the work requires great care.
 For example, uneven partitioning can result in sequential execution
 once the small partitions have completed~\cite{GeneAmdahl1967AmdahlsLaw}.
 In less extreme cases, load balancing can be used to fully utilize
@@ -920,18 +958,20 @@ turn degrades performance.
 Conversely, large numbers of threads are often required to
 overlap computation and I/O so as to fully utilize I/O devices.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Other than CPU cache capacity, what might require limiting the
 	number of concurrent threads?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	There are any number of potential limits on the number of
 	threads:
 	\begin{enumerate}
-	\item	Main memory.  Each thread consumes some memory
+	\item	Main memory.
+		Each thread consumes some memory
 		(for its stack if nothing else), so that excessive
 		numbers of threads can exhaust memory, resulting
 		in excessive paging or memory-allocation failures.
-	\item	I/O bandwidth.  If each thread initiates a given
+	\item	I/O bandwidth.
+		If each thread initiates a given
 		amount of mass-storage I/O or networking traffic,
 		excessive numbers of threads can result in excessive
 		I/O queuing delays, again degrading performance.
@@ -947,7 +987,7 @@ overlap computation and I/O so as to fully utilize I/O devices.
 
 	Specific applications and platforms may have any number of additional
 	limiting factors.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 Finally, permitting threads to execute concurrently greatly increases
 the program's state space, which can make the program difficult to
@@ -976,7 +1016,7 @@ These resources are most often in-memory data structures, but can be CPUs,
 memory (including caches), I/O devices, computational accelerators, files,
 and much else besides.
 
-The first parallel-access-control issue is whether the form of the access to
+The first parallel-access-control issue is whether the form of access to
 a given resource depends on that resource's location.
 For example, in many message-passing environments, local-variable
 access is via expressions and assignments,
@@ -985,7 +1025,7 @@ syntax, usually involving messaging.
 The POSIX Threads environment~\cite{OpenGroup1997pthreads},
 Structured Query Language (SQL)~\cite{DIS9075SQL92}, and
 partitioned global address-space (PGAS) environments
-such as Universal Parallel C (UPC)~\cite{ElGhazawi2003UPC}
+such as Universal Parallel C (UPC)~\cite{ElGhazawi2003UPC,UPCConsortium2013}
 offer implicit access,
 while Message Passing Interface (MPI)~\cite{MPIForum2008} offers
 explicit access because access to remote data requires explicit
@@ -999,16 +1039,36 @@ provided by various parallel languages and environments,
 including message passing, locking, transactions,
 reference counting, explicit timing, shared atomic variables, and data
 ownership.
-Many traditional parallel-programming concerns such as deadlock,
-livelock, and transaction rollback stem from this coordination.
+Many traditional parallel-programming concerns such as \IX{deadlock},
+\IX{livelock}, and transaction rollback stem from this coordination.
 This framework can be elaborated to include comparisons
-of these synchronization mechanisms, for example locking vs. transactional
+of these synchronization mechanisms, for example locking vs.\@ transactional
 memory~\cite{McKenney2007PLOSTM}, but such elaboration is beyond the
 scope of this section.
 (See
-Sections~\ref{sec:future:Transactional Memory}
-and~\ref{sec:future:Hardware Transactional Memory}
+\cref{sec:future:Transactional Memory,%
+sec:future:Hardware Transactional Memory}
 for more information on transactional memory.)
+
+\QuickQuiz{
+	Just what is ``explicit timing''???
+}\QuickQuizAnswer{
+	Where each thread is given access to some set of resources during
+	an agreed-to slot of time.
+	For example, a parallel program with eight threads might be
+	organized into eight-millisecond time intervals, so that the
+	first thread is given access during the first millisecond of
+	each interval, the second thread during the second millisecond,
+	and so on.
+	This approach clearly requires carefully synchronized clocks
+	and careful control of execution times, and therefore should
+	be used with considerable caution.
+
+	In fact, outside of hard realtime environments, you almost
+	certainly want to use something else instead.
+	Explicit timing is nevertheless worth a mention, as it is
+	always there when you need it.
+}\QuickQuizEnd
 
 \subsection{Resource Partitioning and Replication}
 \label{sec:Resource Partitioning and Replication}
@@ -1022,7 +1082,7 @@ partitioned over computer systems, mass-storage devices, NUMA nodes,
 CPU cores (or dies or hardware threads), pages, cache lines, instances
 of synchronization primitives, or critical sections of code.
 For example, partitioning over locking primitives is termed
-``data locking''~\cite{Beck85}.
+``\IXh{data}{locking}''~\cite{Beck85}.
 
 Resource partitioning is frequently application dependent.
 For example, numerical applications frequently partition matrices
@@ -1058,7 +1118,7 @@ the previous sections.
 \subsection{Composite Capabilities}
 \label{sec:Composite Capabilities}
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{intro/FourTaskOrder}}
 \caption{Ordering of Parallel-Programming Tasks}
@@ -1074,7 +1134,7 @@ inter-partition communication, partitions the code accordingly,
 and finally maps data partitions and threads so as to maximize
 throughput while minimizing inter-thread communication,
 as shown in
-Figure~\ref{fig:intro:Ordering of Parallel-Programming Tasks}.
+\cref{fig:intro:Ordering of Parallel-Programming Tasks}.
 The developer can then
 consider each partition separately, greatly reducing the size
 of the relevant state space, in turn increasing productivity.
@@ -1099,9 +1159,9 @@ must manually carry out these tasks.
 We can expect to see ever-increasing automation of these four tasks
 as parallel systems continue to become cheaper and more readily available.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Are there any other obstacles to parallel programming?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	There are a great many other potential obstacles to parallel
 	programming.
 	Here are a few of them:
@@ -1165,10 +1225,13 @@ as parallel systems continue to become cheaper and more readily available.
 	can be a large and complex effort.
 	As with any large and complex effort, it makes sense to
 	do your homework beforehand.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 \section{Discussion}
 \label{sec:intro:Discussion}
+%
+\epigraph{Until you try, you don't know what you can't do.}
+	 {\emph{Henry James}}
 
 This section has given an overview of the difficulties with, goals of,
 and alternatives to parallel programming.
@@ -1183,11 +1246,13 @@ monograph~\cite{AndrewDBirrell1989Threads} is especially telling:
 
 \begin{quote}
 	Writing concurrent programs has a reputation for being exotic
-	and difficult. I believe it is neither. You need a system
-	that provides you with good primitives and suitable libraries,
+	and difficult.
+	I~believe it is neither.
+	You need a system that provides you with good primitives
+	and suitable libraries,
 	you need a basic caution and carefulness, you need an armory of
-	useful techniques, and you need to know of the common pitfalls. I
-	hope that this paper has helped you towards sharing my belief.
+	useful techniques, and you need to know of the common pitfalls.
+	I~hope that this paper has helped you towards sharing my belief.
 \end{quote}
 
 The authors of these older guides were well up to the parallel programming
@@ -1198,3 +1263,5 @@ parallel-programming challenge here in the 21\textsuperscript{st} century!
 We are now ready to proceed to the next chapter, which dives into the
 relevant properties of the parallel hardware underlying our parallel
 software.
+
+\QuickQuizAnswersChp{qqzintro}

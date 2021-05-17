@@ -17,14 +17,16 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# Copyright (C) IBM Corporation, 2008
+# Copyright (C) IBM Corporation, 2008-2019
+# Copyright (C) Facebook, 2019
 #
-# Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+# Authors: Paul E. McKenney <paulmck@kernel.org>
 
+echo "% mainfile: perfbook.tex"
 sed -n -e '/^\\QuickQuizChapter{/p' \
-       -e '/^\\QuickQuiz{/,/^} \\QuickQuizEnd/p' |
+       -e '/^\\E\?QuickQuiz[BEM]\?{/,/^}\\E\?QuickQuizEnd[BEM]\?/p' |
 sed -e 's/^\\QuickQuizChapter{/\\QuickQAC{/' \
-    -e 's/^\\QuickQuiz{/\\QuickQ{/' \
-    -e 's/^\\QuickQuizAnswer{/\\QuickA{}/' \
+    -e 's/^\\E\?QuickQuiz[BEM]\?{/\\QuickQ{}/' \
+    -e 's/^}\\E\?QuickQuizAnswer[BEM]\?{/\\QuickA{}/' \
     -e 's/^\\QContributedBy{/\\ContributedBy{/' \
-    -e 's/^} \\QuickQuizEnd/\\QuickE{}/'
+    -e 's/^}\\E\?QuickQuizEnd[BEM]\?/\\QuickE{}/'

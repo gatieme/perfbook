@@ -1,24 +1,48 @@
+SHELL = /bin/bash
+
+GITREFSTAGS := $(shell ls -d .git/refs/tags 2>/dev/null)
+
 LATEXSOURCES = \
-	perfbook.tex \
+	perfbook-lt.tex \
 	legal.tex \
+	summary.tex \
 	glossary.tex \
 	qqz.sty origpub.sty \
-	book.cls \
+	glsdict.tex indexsee.tex \
+	noindentafter.sty \
+	pfbook.cls \
 	ushyphex.tex pfhyphex.tex \
+	ack.tex \
 	*/*.tex \
 	*/*/*.tex
 
-LATEXGENERATED = autodate.tex qqz.tex contrib.tex origpub.tex
+LST_SOURCES := $(wildcard CodeSamples/formal/promela/*.lst) \
+	$(wildcard appendix/styleguide/*.c)
 
-ABBREVTARGETS := 1c hb msns mss mstx msr msn msnt 1csf
+SUB_QQZ := qqzhowto.tex qqzintro.tex qqzcpu.tex qqztoolsoftrade.tex \
+	qqzcount.tex qqzSMPdesign.tex qqzlocking.tex qqzowned.tex \
+	qqzdefer.tex qqzdatastruct.tex qqzdebugging.tex qqzformal.tex \
+	qqztogether.tex	qqzadvsync.tex qqzmemorder.tex qqzeasy.tex \
+	qqzfuture.tex qqzquestions.tex qqztoyrcu.tex qqzwhymb.tex
+
+LATEXGENERATED = autodate.tex qqz.tex contrib.tex origpub.tex sub_qqz
+# Note: Empty target "sub_qqz" is used on behalf of $(SUB_QQZ) to prevent
+# parallel runs of divideqqz.pl.
+
+TWOCOLTARGETS := mstx msr msn msnt sf nq sfnq ix df
+EBTARGETS := $(foreach v,nq sf sfnq ix df,eb$(v))
+ABBREVTARGETS := lt hb a4 1c tcb msns mss eb $(TWOCOLTARGETS) $(foreach v,$(TWOCOLTARGETS),1c$(v)) $(EBTARGETS)
 
 PDFTARGETS := perfbook.pdf $(foreach v,$(ABBREVTARGETS),perfbook-$(v).pdf)
+GENERATED_MAIN := $(filter-out perfbook-lt.tex,$(foreach v,$(ABBREVTARGETS),perfbook-$(v).tex)) perfbook.tex
 
 EPSSOURCES_FROM_TEX := \
 	SMPdesign/DiningPhilosopher5.eps \
 	SMPdesign/DiningPhilosopher5TB.eps \
 	SMPdesign/DiningPhilosopher4part-b.eps \
 	SMPdesign/DiningPhilosopher5PEM.eps
+
+PDFTARGETS_OF_TEX := $(EPSSOURCES_FROM_TEX:%.eps=%.pdf)
 
 DOTSOURCES := $(wildcard */*.dot)
 
@@ -28,30 +52,118 @@ FIGSOURCES := $(wildcard */*.fig) $(wildcard */*/*.fig)
 
 EPSSOURCES_FROM_FIG := $(FIGSOURCES:%.fig=%.eps)
 
+SVGSOURCES := $(wildcard */*.svg)
+FAKE_EPS_FROM_SVG := $(SVGSOURCES:%.svg=%.eps)
+PDFTARGETS_OF_SVG := $(SVGSOURCES:%.svg=%.pdf)
+
+OBSOLETE_FILES = extraction $(FAKE_EPS_FROM_SVG) CodeSamples/snippets.mk
+
 EPSSOURCES_DUP := \
 	$(wildcard */*.eps) \
 	$(wildcard */*/*.eps) \
+	$(wildcard */*/*/*.eps) \
+	$(wildcard */*/*/*/*.eps) \
+	$(wildcard */*/*/*/*/*.eps) \
 	$(EPSSOURCES_FROM_TEX) \
 	$(EPSSOURCES_FROM_DOT) \
 	$(EPSSOURCES_FROM_FIG)
 
-EPSSOURCES := $(sort $(EPSSOURCES_DUP))
+EPSSOURCES := $(sort $(filter-out $(OBSOLETE_FILES),$(EPSSOURCES_DUP)))
 
 PDFTARGETS_OF_EPS := $(EPSSOURCES:%.eps=%.pdf)
 
+EPSORIGIN := $(filter-out $(EPSSOURCES_FROM_TEX) $(EPSSOURCES_FROM_DOT) $(EPSSOURCES_FROM_FIG),$(EPSSOURCES))
+
+PDFTARGETS_OF_EPSORIG := $(EPSORIGIN:%.eps=%.pdf)
+
+PDFTARGETS_OF_EPSOTHER := $(filter-out $(PDFTARGETS_OF_EPSORIG) $(PDFTARGETS_OF_TEX),$(PDFTARGETS_OF_EPS))
+
 BIBSOURCES := bib/*.bib alphapf.bst
 
-SVGSOURCES := $(wildcard */*.svg)
-
-PDFTARGETS_OF_SVG := $(SVGSOURCES:%.svg=%.pdf)
-
+# required commands
 DOT := $(shell which dot 2>/dev/null)
-
 FIG2EPS := $(shell which fig2eps 2>/dev/null)
-
 A2PING := $(shell which a2ping 2>/dev/null)
-
 INKSCAPE := $(shell which inkscape 2>/dev/null)
+ifdef INKSCAPE
+  INKSCAPE_ONE := $(shell inkscape --version 2>/dev/null | grep -c "Inkscape 1")
+endif
+LATEXPAND := $(shell which latexpand 2>/dev/null)
+QPDF := $(shell which qpdf 2>/dev/null)
+
+# required fonts
+STEELFONT := $(shell fc-list | grep -c -i steel)
+URWPS := $(shell fc-list | grep "Nimbus Mono PS" | wc -l)
+
+# required font packages
+FONTPACKAGES := $(shell kpsewhich newtxtext.sty nimbusmono.sty newtxtt.sty newtxsf.sty inconsolata.sty couriers.sty mdsymbol.sty)
+NEWTXTEXT := $(findstring newtxtext,$(FONTPACKAGES))
+NIMBUSMONO := $(findstring nimbusmono,$(FONTPACKAGES))
+NEWTXTT := $(findstring newtxtt,$(FONTPACKAGES))
+COURIERS := $(findstring couriers,$(FONTPACKAGES))
+NEWTXSF := $(findstring newtxsf,$(FONTPACKAGES))
+INCONSOLATA := $(findstring inconsolata,$(FONTPACKAGES))
+MDSYMBOL := $(findstring mdsymbol,$(FONTPACKAGES))
+
+# for line break in error text
+define n
+
+
+endef
+
+ifeq ($(URWPS),0)
+FIXSVGFONTS   = utilities/fixsvgfonts.sh
+FIXANEPSFONTS = utilities/fixanepsfonts.sh
+else
+FIXSVGFONTS   = utilities/fixsvgfonts-urwps.sh
+FIXANEPSFONTS = utilities/fixanepsfonts-urwps.sh
+  ifeq ($(MDSYMBOL),)
+    NEEDMDSYMBOL := 1
+  else
+    NEEDMDSYMBOL := 0
+  endif
+endif
+
+STEELFONTID := $(shell fc-list | grep -i steel | grep -c Steel)
+
+ifdef A2PING
+  GS_950_OR_LATER := $(shell gs --version | grep -c -E "9\.[5-9].?")
+  A2PING_277P := $(shell a2ping --help 2>&1 | grep -c "2.77p,")
+  A2PING_283P := $(shell a2ping --help 2>&1 | grep -c "2.83p,")
+  GS_953_OR_LATER := $(shell gs --version | grep -c -E "9\.5[3-9].?")
+  ifeq ($(A2PING_277P),1)
+    A2PING_GSCNFL = 1
+  else
+    ifeq ($(A2PING_283P),1)
+      ifeq ($(GS_950_OR_LATER),1)
+        A2PING_GSCNFL = 1
+      else
+        A2PING_GSCNFL = 0
+      endif
+    else
+      A2PING_GSCNFL = 0
+    endif
+  endif
+  ifeq ($(GS_953_OR_LATER),1)
+    A2PING_GSCNFL = 2
+  endif
+endif
+
+LINELABEL_ENV_BEGIN := $(shell grep -l -F '\begin{linelabel}' $(LATEXSOURCES))
+LINELABEL_ENV_END   := $(shell grep -l -F '\end{linelabel}'   $(LATEXSOURCES))
+LINEREF_ENV_BEGIN   := $(shell grep -l -F '\begin{lineref}'   $(LATEXSOURCES))
+LINEREF_ENV_END     := $(shell grep -l -F '\end{lineref}'     $(LATEXSOURCES))
+LINELABEL_ENV := $(sort $(LINELABEL_ENV_BEGIN) $(LINELABEL_ENV_END))
+LINEREF_ENV   := $(sort $(LINEREF_ENV_BEGIN) $(LINEREF_ENV_END))
+
+CREFPTN    := '\\[Cc](ln)?ref{[^}]+}\s*{[^}]+}'
+CREFPAIR   := $(shell grep -l -zo -E $(CREFPTN)   $(LATEXSOURCES))
+
+SOURCES_OF_SNIPPET_ALL := $(shell grep -r -l -F '\begin{snippet}' CodeSamples)
+SOURCES_OF_LITMUS      := $(shell grep -r -l -F '\begin[snippet]' CodeSamples)
+SOURCES_OF_LTMS        := $(patsubst %.litmus,%.ltms,$(SOURCES_OF_LITMUS))
+SOURCES_OF_SNIPPET     := $(filter-out $(SOURCES_OF_LTMS),$(SOURCES_OF_SNIPPET_ALL)) $(SOURCES_OF_LITMUS)
+GEN_SNIPPET_D  = utilities/gen_snippet_d.pl utilities/gen_snippet_d.sh
 
 default = $(PERFBOOK_DEFAULT)
 
@@ -61,17 +173,50 @@ else
 	targ = $(default)
 endif
 
-.PHONY: all touchsvg clean distclean neatfreak 2c ls-unused $(ABBREVTARGETS) mslm perfbook-mslm.pdf mslmmsg help
-all: $(targ)
+chkpagegroup = $(PERFBOOK_CHKPAGEGROUP)
+
+ifeq ($(PERFBOOK_PAPER),A4)
+	PERFBOOK_BASE = perfbook-a4.tex
+else
+ifeq ($(PERFBOOK_PAPER),HB)
+	PERFBOOK_BASE = perfbook-hb.tex
+else
+	PERFBOOK_BASE = perfbook-lt.tex
+endif
+endif
+
+BASE_DEPENDS := perfbook.tex $(foreach v,tcb 1c msns mss mstx msr msn msnt sf nq ix df,perfbook-$(v).tex)
+
+.PHONY: all touchsvg clean distclean neatfreak 2c ls-unused $(ABBREVTARGETS)
+.PHONY: mslm perfbook-mslm.pdf mslmmsg
+.PHONY: qq perfbook-qq.pdf qqmsg
+.PHONY: help help-official help-full help-semiofficial help-paper help-draft
+.PHONY: help-experimental help-prefixed
+.PHONY: paper-clean periodcheck periodcheck-auto
+
+all: periodcheck-auto
+
+ifeq ($(MAKECMDGOALS),clean)
+else ifeq ($(MAKECMDGOALS),distclean)
+else ifeq ($(MAKECMDGOALS),neatfreak)
+else
+-include CodeSamples/snippets.d
+endif
 
 2c: perfbook.pdf
 
 mslm: perfbook-mslm.pdf
+perfbook-mslm.pdf: mslmmsg
 
-perfbook-mslm.pdf: perfbook.pdf mslmmsg
+qq: perfbook-qq.pdf
+perfbook-qq.pdf: qqmsg
 
-mslmmsg:
+mslmmsg: perfbook.pdf
 	@echo "perfbook-mslm.pdf is promoted to default target,"
+	@echo "built as perfbook.pdf."
+
+qqmsg: perfbook.pdf
+	@echo "perfbook-qq.pdf is promoted to default target,"
 	@echo "built as perfbook.pdf."
 
 $(PDFTARGETS): %.pdf: %.tex %.bbl
@@ -80,17 +225,53 @@ $(PDFTARGETS): %.pdf: %.tex %.bbl
 $(PDFTARGETS:.pdf=.bbl): %.bbl: %.aux $(BIBSOURCES)
 	bibtex $(basename $@)
 
-$(PDFTARGETS:.pdf=.aux): $(LATEXGENERATED) $(LATEXSOURCES)
+$(PDFTARGETS:.pdf=.aux): $(LATEXGENERATED) $(LATEXSOURCES) $(LST_SOURCES)
+ifeq ($(NEWTXTEXT),)
+	$(error Font package 'newtx' not found. See #9 in FAQ-BUILD.txt)
+endif
 	sh utilities/runfirstlatex.sh $(basename $@)
 
-autodate.tex: $(LATEXSOURCES) $(BIBSOURCES) $(SVGSOURCES) $(FIGSOURCES) $(DOTSOURCES)
-	sh utilities/autodate.sh >autodate.tex
+autodate.tex: perfbook-lt.tex $(LATEXSOURCES) $(BIBSOURCES) \
+    $(PDFTARGETS_OF_EPS) $(PDFTARGETS_OF_SVG) $(FCVSNIPPETS) $(FCVSNIPPETS_VIA_LTMS) \
+    $(GITREFSTAGS) utilities/autodate.sh
+	sh utilities/autodate.sh
 
-perfbook_flat.tex: perfbook.tex $(LATEXSOURCES) $(PDFTARGETS_OF_EPS) $(PDFTARGETS_OF_SVG)
+perfbook_flat.tex: autodate.tex
+ifndef LATEXPAND
+	$(error --> $@: latexpand not found. Please install it)
+endif
+	@if [ ! -z "$(LINELABEL_ENV)" -a "$(LINELABEL_ENV)" != " " ]; then \
+		echo "'linelabel' used as environment in $(LINELABEL_ENV)." ; \
+		echo "------" ; \
+		grep -n -B 2 -A 2 -F 'linelabel' $(LINELABEL_ENV) ; \
+		echo "------" ; \
+		echo "Substitute 'fcvlabel' for 'linelabel' in $(LINELABEL_ENV)." ; \
+		exit 1 ; \
+	fi
+	@if [ ! -z "$(LINEREF_ENV)" -a "$(LINEREF_ENV)" != " " ]; then \
+		echo "'lineref' used as environment in $(LINEREF_ENV)." ; \
+		echo "------" ; \
+		grep -n -B 2 -A 2 -F 'lineref' $(LINEREF_ENV) ; \
+		echo "------" ; \
+		echo "Substitute 'fcvref' for 'lineref' in $(LINEREF_ENV)." ; \
+		exit 1 ; \
+	fi
+	@if [ ! -z "$(CREFPAIR)" -a "$(CREFPAIR)" != " " ]; then \
+		echo "------" ; \
+		if grep -q -E $(CREFPTN) $(CREFPAIR) ; then \
+			grep -n -B 2 -A 2 -E $(CREFPTN) $(CREFPAIR) ; \
+		else \
+			grep -zo -B 2 -A 2 -E $(CREFPTN) $(CREFPAIR) ; \
+			echo ; \
+		fi ; \
+		echo "------" ; \
+		echo "Need to use \[Cc]refrange or \[Cc]lnrefrangein $(CREFPAIR)." ; \
+		exit 1 ; \
+	fi
 	echo > qqz.tex
 	echo > contrib.tex
 	echo > origpub.tex
-	texexpand perfbook.tex > $@
+	latexpand --empty-comments perfbook-lt.tex 1> $@ 2> /dev/null
 
 qqz.tex: perfbook_flat.tex
 	sh utilities/extractqqz.sh < $< | perl utilities/qqzreorder.pl > $@
@@ -101,40 +282,117 @@ contrib.tex: perfbook_flat.tex qqz.tex
 origpub.tex: perfbook_flat.tex
 	sh utilities/extractorigpub.sh < $< > $@
 
-perfbook-1c.tex: perfbook.tex
-	sed -e 's/,twocolumn//' -e 's/setboolean{twocolumn}{true}/setboolean{twocolumn}{false}/' < $< > $@
+# Empty target to generate $(SUB_QQZ) files
+sub_qqz: qqz.tex
+	utilities/divideqqz.pl
+	@touch sub_qqz
 
-perfbook-hb.tex: perfbook.tex
-	sed -e 's/,twocolumn/&,letterpaperhb/' -e 's/setboolean{hardcover}{false}/setboolean{hardcover}{true}/' < $< > $@
+perfbook.tex: $(PERFBOOK_BASE)
+	cp $< $@
 
-perfbook-msns.tex: perfbook.tex
-	sed -e 's/%msfontstub/\\usepackage{courier}/' \
-	    -e 's/{lmttforcode}{true}/{lmttforcode}{false}/' < $< > $@
+perfbook-tcb.tex: $(PERFBOOK_BASE)
+	sed -e 's/{tblcptop}{true}/{tblcptop}{false}/' < $< > $@
 
-perfbook-mss.tex: perfbook.tex
-	sed -e 's/%msfontstub/\\usepackage[scaled=.94]{couriers}/' \
-	    -e 's/{lmttforcode}{true}/{lmttforcode}{false}/' < $< > $@
+perfbook-1c.tex: $(PERFBOOK_BASE)
+	sed -e 's/setboolean{twocolumn}{true}/setboolean{twocolumn}{false}/' < $< > $@
 
-perfbook-mstx.tex: perfbook.tex
+perfbook-hb.tex: perfbook-lt.tex
+	sed -e 's/setboolean{hardcover}{false}/setboolean{hardcover}{true}/' < $< > $@
+
+perfbook-eb.tex: perfbook-lt.tex
+	sed -e 's/setboolean{ebooksize}{false}/setboolean{ebooksize}{true}/' < $< > $@
+	sed -i 's/setboolean{twocolumn}{true}/setboolean{twocolumn}{false}/' $@
+
+perfbook-msns.tex: $(PERFBOOK_BASE)
+	sed -e 's/%msfontstub/\\usepackage{courier}/' < $< > $@
+
+perfbook-mss.tex: $(PERFBOOK_BASE)
+ifeq ($(COURIERS),)
+	$(error Font package 'courier-scaled' not found. See #9 in FAQ-BUILD.txt)
+endif
+	sed -e 's/%msfontstub/\\usepackage[scaled=.94]{couriers}/' < $< > $@
+
+perfbook-mstx.tex: $(PERFBOOK_BASE)
+perfbook-1cmstx.tex: perfbook-1c.tex
+perfbook-mstx.tex perfbook-1cmstx.tex:
 	sed -e 's/%msfontstub/\\renewcommand*\\ttdefault{txtt}/' < $< > $@
 
-perfbook-msr.tex: perfbook.tex
-	sed -e 's/%msfontstub/\\usepackage[scaled=.94]{nimbusmono}/' < $< > $@
-	@echo "## This target requires font package nimbus15. ##"
+perfbook-msr.tex: $(PERFBOOK_BASE)
+perfbook-1cmsr.tex: perfbook-1c.tex
+perfbook-msr.tex perfbook-1cmsr.tex:
+ifeq ($(NIMBUSMONO),)
+	$(error Font package 'nimbus15' not found. See #9 in FAQ-BUILD.txt)
+endif
+	sed -e 's/%msfontstub/\\usepackage[scaled=.94]{nimbusmono}/' \
+	    -e 's/{nimbusavail}{false}/{nimbusavail}{true}/' < $< > $@
 
-perfbook-msn.tex: perfbook.tex
-	sed -e 's/%msfontstub/\\usepackage{nimbusmononarrow}/' < $< > $@
-	@echo "## This target requires font package nimbus15. ##"
+perfbook-msn.tex: $(PERFBOOK_BASE)
+perfbook-1cmsn.tex: perfbook-1c.tex
+perfbook-msn.tex perfbook-1cmsn.tex:
+ifeq ($(NIMBUSMONO),)
+	$(error Font package 'nimbus15' not found. See #9 in FAQ-BUILD.txt)
+endif
+	sed -e 's/\\renewcommand\*\\ttdefault{lmtt}//' \
+	    -e 's/{lmttforcode}{true}/{lmttforcode}{false}/' \
+	    -e 's/{nimbusavail}{false}/{nimbusavail}{true}/' < $< > $@
 
-perfbook-msnt.tex: perfbook.tex
-	sed -e 's/%msfontstub/\\usepackage[zerostyle=a]{newtxtt}/' < $< > $@
-	@echo "## This target requires font package newtxtt. ##"
-	@echo "## If build fails, try target 'mstx' instead. ##"
+perfbook-msnt.tex: $(PERFBOOK_BASE)
+perfbook-1cmsnt.tex: perfbook-1c.tex
+perfbook-msnt.tex perfbook-1cmsnt.tex:
+ifeq ($(NEWTXTT),)
+	$(error Font package 'newtxtt' not found.$nInstall it or try 'make mstx' instead. See #9 in FAQ-BUILD.txt)
+endif
+ifeq ($(NIMBUSMONO),)
+	$(error Font package 'nimbus15' not found. See #9 in FAQ-BUILD.txt)
+endif
+	sed -e 's/%msfontstub/\\usepackage[zerostyle=a]{newtxtt}/' \
+	    -e 's/{qqzbg}{false}/{qqzbg}{true}/' \
+	    -e 's/{nimbusavail}{false}/{nimbusavail}{true}/' < $< > $@
 
+perfbook-sf.tex: $(PERFBOOK_BASE)
 perfbook-1csf.tex: perfbook-1c.tex
+perfbook-ebsf.tex: perfbook-eb.tex
+perfbook-sf.tex perfbook-1csf.tex perfbook-ebsf.tex:
+ifeq ($(NEWTXSF),)
+	$(error Font package 'newtxsf' not found. See #9 in FAQ-BUILD.txt)
+endif
+ifeq ($(INCONSOLATA),)
+	$(error Font package 'inconsolata' not found. See #9 in FAQ-BUILD.txt)
+endif
+ifeq ($(NIMBUSMONO),)
+	$(error Font package 'nimbus15' not found. See #9 in FAQ-BUILD.txt)
+endif
 	sed -e 's/setboolean{sansserif}{false}/setboolean{sansserif}{true}/' \
+	    -e 's/{nimbusavail}{false}/{nimbusavail}{true}/' \
 	    -e 's/%msfontstub/\\usepackage[var0]{inconsolata}[2013\/07\/17]/' < $< > $@
-	@echo "## This target requires recent version (>= 1.3i) of mathastext. ##"
+
+perfbook-nq.tex: $(PERFBOOK_BASE)
+perfbook-sfnq.tex: perfbook-sf.tex
+perfbook-1cnq.tex: perfbook-1c.tex
+perfbook-1csfnq.tex: perfbook-1csf.tex
+perfbook-ebnq.tex: perfbook-eb.tex
+perfbook-ebsfnq.tex: perfbook-ebsf.tex
+perfbook-nq.tex perfbook-sfnq.tex perfbook-1cnq.tex perfbook-1csfnq.tex perfbook-ebnq.tex perfbook-ebsfnq.tex:
+	sed -e 's/setboolean{qqzbg}{true}/setboolean{qqzbg}{false}/' \
+	    -e 's/setboolean{noqqz}{false}/setboolean{noqqz}{true}/' < $< > $@
+
+perfbook-ix.tex: $(PERFBOOK_BASE)
+perfbook-1cix.tex: perfbook-1c.tex
+perfbook-ebix.tex: perfbook-eb.tex
+perfbook-ix.tex perfbook-1cix.tex perfbook-ebix.tex:
+	sed -e 's/setboolean{qqzbg}{true}/setboolean{qqzbg}{false}/' \
+	    -e 's/setboolean{indexhl}{false}/setboolean{indexhl}{true}/' < $< > $@
+
+perfbook-df.tex: $(PERFBOOK_BASE)
+perfbook-1cdf.tex: perfbook-1c.tex
+perfbook-ebdf.tex: perfbook-eb.tex
+perfbook-df.tex perfbook-1cdf.tex perfbook-ebdf.tex:
+	sed -e 's/setboolean{qqzbg}{true}/setboolean{qqzbg}{false}/' \
+	    -e 's/setboolean{indexon}{true}/setboolean{indexon}{false}/' < $< > $@
+
+perfbook-a4.tex: perfbook-lt.tex
+perfbook-a4.tex:
+	sed -e 's/{afourpaper}{false}/{afourpaper}{true}/' < $< > $@
 
 # Rules related to perfbook_html are removed as of May, 2016
 
@@ -143,74 +401,206 @@ $(EPSSOURCES_FROM_TEX): %.eps: %.tex
 	sh utilities/mpostcheck.sh
 	@latex -output-directory=$(shell dirname $<) $< > /dev/null 2>&1
 	@dvips -Pdownload35 -E $(patsubst %.tex,%.dvi,$<) -o $@ > /dev/null 2>&1
-	@sh utilities/fixanepsfonts.sh $@
+	@sh $(FIXANEPSFONTS) $@
 
 $(EPSSOURCES_FROM_DOT): %.eps: %.dot
 	@echo "$< --> $@"
 ifndef DOT
-	$(error "$< --> $@: dot not found. Please install graphviz")
+	$(error $< --> $@: dot not found. Please install graphviz)
 endif
 	@dot -Tps -o $@ $<
-	@sh utilities/fixanepsfonts.sh $@
+	@sh $(FIXANEPSFONTS) $@
 
 $(EPSSOURCES_FROM_FIG): %.eps: %.fig
 	@echo "$< --> $@"
 ifndef FIG2EPS
-	$(error "$< --> $@: fig2eps not found. Please install fig2ps")
+	$(error $< --> $@: fig2eps not found. Please install fig2ps)
 endif
 	@fig2eps --nogv $< > /dev/null 2>&1
-	@sh utilities/fixanepsfonts.sh $@
+	@sh $(FIXANEPSFONTS) $@
 
-$(PDFTARGETS_OF_EPS): %.pdf: %.eps
+$(PDFTARGETS_OF_EPSORIG): %.pdf: %.eps
 	@echo "$< --> $@"
 ifndef A2PING
-	$(error "$< --> $@: a2ping not found. Please install it.")
+	$(error $< --> $@: a2ping not found. Please install it)
+endif
+ifeq ($(A2PING_GSCNFL),1)
+	$(error You need to update a2ping. See #7 in FAQ-BUILD.txt)
+endif
+	@cp $< $<i
+	@sh $(FIXANEPSFONTS) $<i
+	@a2ping --below --hires --bboxfrom=compute-gs $<i $@ > /dev/null 2>&1
+	@rm -f $<i
+
+$(PDFTARGETS_OF_TEX): %.pdf: %.eps
+	@echo "$< --> $@"
+ifndef A2PING
+	$(error $< --> $@: a2ping not found. Please install it)
+endif
+ifeq ($(A2PING_GSCNFL),1)
+	$(error a2ping version conflict. See #7 in FAQ-BUILD.txt)
+endif
+ifeq ($(A2PING_GSCNFL),2)
+	@a2ping --below --gsextra=-dALLOWPSTRANSPARENCY $< $(basename $@)__.pdf > /dev/null 2>&1
+	@pdfcrop --hires $(basename $@)__.pdf $@ > /dev/null
+	@rm -f $(basename $@)__.pdf
+else
+	@a2ping --below --hires --bboxfrom=compute-gs $< $@ > /dev/null 2>&1
+endif
+
+$(PDFTARGETS_OF_EPSOTHER): %.pdf: %.eps
+	@echo "$< --> $@"
+ifndef A2PING
+	$(error $< --> $@: a2ping not found. Please install it)
+endif
+ifeq ($(A2PING_GSCNFL),1)
+	$(error a2ping version conflict. See #7 in FAQ-BUILD.txt)
 endif
 	@a2ping --below --hires --bboxfrom=compute-gs $< $@ > /dev/null 2>&1
 
 $(PDFTARGETS_OF_SVG): %.pdf: %.svg
 	@echo "$< --> $@"
-ifndef INKSCAPE
-	$(error "$< --> $@: inkscape not found. Please install it.")
+ifeq ($(STEELFONT),0)
+	$(error "Steel City Comic" font not found. See #1 in FAQ.txt)
 endif
-	@inkscape --export-pdf=$@ $<
+ifndef INKSCAPE
+	$(error $< --> $@ inkscape not found. Please install it)
+endif
+ifeq ($(STEELFONTID),0)
+	@sh $(FIXSVGFONTS) < $< | sed -e 's/Steel City Comic/Test/g' > $<i
+else
+	@sh $(FIXSVGFONTS) < $< > $<i
+endif
+ifeq ($(NEEDMDSYMBOL),1)
+	$(error Font package 'mdsymbol' not found. See #9 in FAQ-BUILD.txt)
+endif
+ifeq ($(INKSCAPE_ONE),0)
+	@inkscape --export-pdf=$@ $<i > /dev/null 2>&1
+else
+	@inkscape -o $@ $<i > /dev/null 2>&1
+endif
+	@rm -f $<i
+ifeq ($(chkpagegroup),on)
+ifndef QPDF
+	$(error qpdf not found. Please install it)
+endif
+	@echo "checking page group in $@"
+	@qpdf --qdf $@ $@q
+	@./utilities/extpagegroup.pl < $@q > $@p
+	@diff -q -w $@p pagegroup
+	@rm -f $@q $@p
+endif
 
-help:
+CodeSamples/snippets.d: $(SOURCES_OF_SNIPPET) $(GEN_SNIPPET_D)
+	sh ./utilities/gen_snippet_d.sh
+
+$(FCVSNIPPETS):
+	@echo "$< --> $@"
+	@utilities/fcvextract.pl $< $(subst +,\\+,$(subst @,:,$(basename $(notdir $@)))) > $@
+	@utilities/checkfcv.pl $@
+
+$(FCVSNIPPETS_VIA_LTMS):
+	@echo "$< --> $@"
+	@utilities/fcvextract.pl $< $(subst +,\\+,$(subst @,:,$(basename $(notdir $@)))) > $@
+	@utilities/checkfcv.pl $@
+
+$(FCVSNIPPETS_LTMS):
+	@echo "$< --> $@"
+	@utilities/reorder_ltms.pl $< > $@
+
+help-official:
 	@echo "Official targets (Latin Modern Typewriter for monospace font):"
 	@echo "  Full,              Abbr."
 	@echo "  perfbook.pdf,      2c:   (default) 2-column layout"
 	@echo "  perfbook-1c.pdf,   1c:   1-column layout"
-	@echo "  perfbook-hb.pdf,   hb:   For hardcover books (2-column)"
+	@echo "Note:"
+	@echo "  Official targets now enable indexing and Quick-Quiz framing."
+
+help-semiofficial:
+	@echo
+	@echo "Semi-official targets:"
+	@echo "  Full,              Abbr."
+	@echo "  perfbook-nq.pdf,   nq:   2c without inline Quick Quizzes (chapterwise Qs)"
+	@echo "  perfbook-sf.pdf,   sf:   2c with sans serif font"
+	@echo "  perfbook-sfnq.pdf, sfnq: sf + nq"
+
+help-paper:
+	@echo
+	@echo "Set env variable PERFBOOK_PAPER to change paper size:"
+	@echo "   PERFBOOK_PAPER=A4: a4paper"
+	@echo "   PERFBOOK_PAPER=HB: hard cover book"
+	@echo "   other (default):   letterpaper"
+	@echo "Note:"
+	@echo "  Modified PERFBOOK_PAPER takes effect after \"make paper-clean\"."
+	@echo
+	@echo "Paper-size specific targets (independent of PERFBOOK_PAPER):"
+	@echo "  perfbook-lt.pdf,   lt:   2c layout on letterpaper"
+	@echo "  perfbook-hb.pdf,   hb:   2c layout for hard cover book"
+	@echo "  perfbook-a4.pdf,   a4:   2c layout on a4paper"
+	@echo "  perfbook-eb.pdf,   eb:   1c layout for ebook reader (WIP)"
+
+help: help-official help-paper
+	@echo
+	@echo "\"make help-full\" will show the full list of available targets."
+
+help-draft:
+	@echo
+	@echo "Targets for draft check, non-framed Quick Quizzes (quicker build)"
+	@echo "  perfbook-ix.pdf,   ix:   for draft check, with indexed terms highlighted"
+	@echo "  perfbook-df.pdf,   df:   for draft check, without indexing"
+
+help-prefixed:
+	@echo
+	@echo "Prefixed targets:"
+	@echo "  \"1c*\" such as \"1cnq\", \"1csf\", and \"1cix\" are for 1c-layout."
+	@echo "  \"ebnq\", \"ebsf\", \"ebsfnq\", \"ebix\", and \"ebdf\" are for ebook-size 1c-layout,"
+	@echo "     independent of PERFBOOK_PAPER. (WIP)"
+
+help-experimental:
 	@echo
 	@echo "Experimental targets:"
-	@echo "  Full,              Abbr."
-	@echo "  perfbook-msnt.pdf, msnt: 2c with newtxtt as monospace (non-slashed 0)"
-	@echo "  perfbook-mstx.pdf, mstx: 2c with txtt as monospace"
-	@echo "  perfbook-msr.pdf,  msr:  2c with regular thickness courier clone"
-	@echo "  perfbook-msn.pdf,  msn:  2c with narrow courier clone"
-
-	@echo "  perfbook-1csf.pdf, 1csf: 1c with sans serif font"
-	@echo "  perfbook-msns.pdf, msns: 2c with non-scaled courier (orig default)"
-	@echo "  perfbook-mss.pdf,  mss:  2c with scaled courier (prev default)"
-	@echo "  \"msnt\" requires \"newtxtt\". \"mstx\" is fallback target for older TeX env."
-	@echo "  \"msr\" and \"msn\" require \"nimbus15\"."
-	@echo "  \"msn\" doesn't cover bold face for monospace."
-	@echo "  \"1csf\" requires recent version (>=1.3i) of \"mathastext\"."
+	@echo "  perfbook-msnt.pdf, msnt: newtxtt as monospace (non-slashed 0)"
+	@echo "  perfbook-mstx.pdf, mstx: txtt as monospace"
+	@echo "  perfbook-msr.pdf,  msr:  regular thickness courier clone as monospace"
+	@echo "  perfbook-msn.pdf,  msn:  narrow courier clone as monospace"
 	@echo
-	@echo "All targets except for \"msns\" and \"mss\" use \"Latin Modern Typewriter font"
-	@echo "for code snippets."
+	@echo "Historical targets:"
+	@echo "  perfbook-tcb.pdf,  tcb:  table caption at bottom (First Edition)"
+	@echo "  perfbook-msns.pdf, msns: non-scaled courier (First Edition)"
+	@echo "  perfbook-mss.pdf,  mss:  scaled courier (default in early 2017)"
+	@echo
+	@echo "Notes:"
+	@echo "  - \"msnt\" requires \"newtxtt\". \"mstx\" is a fallback target for older TeX env."
+	@echo "  - \"msr\" and \"msn\" require \"nimbus15\"."
+	@echo "  - \"msn\" doesn't cover bold face monospace."
+	@echo "  - \"sf\" requires \"newtxsf\"."
+	@echo "  - All the targets except for \"msn\" use \"Latin Modern Typewriter\" font"
+	@echo "    for code snippets."
+
+help-full: help-official help-paper help-semiofficial help-draft help-prefixed help-experimental
 
 clean:
 	find . -name '*.aux' -o -name '*.blg' \
 		-o -name '*.dvi' -o -name '*.log' \
-		-o -name '*.qqz' -o -name '*.toc' -o -name '*.bbl' | xargs rm -f
-	rm -f perfbook_flat.tex perfbook*.out perfbook-*.tex
+		-o -name '*.qqz' -o -name '*.toc' -o -name '*.bbl' \
+		-o -name '*.pdfp' -o -name '*.pdfq' | xargs rm -f
+	rm -f perfbook_flat.tex perfbook*.out $(GENERATED_MAIN)
 	rm -f $(LATEXGENERATED)
-	rm -f extraction
+	rm -f qqz*.tex
+	rm -f perfbook*.idx perfbook*.ind perfbook*.ilg perfbook*.ist
+	rm -f perfbook*.acn perfbook*.acr perfbook*.alg
+	rm -f perfbook*.glg perfbook*.glo perfbook*.gls perfbook*.glsdefs
+	rm -f CodeSamples/snippets.d
+	rm -f *.synctex*
+	@rm -f $(OBSOLETE_FILES)
+
+paper-clean:
+	rm -f $(BASE_DEPENDS)
 
 distclean: clean
 	sh utilities/cleanpdf.sh
 	rm -f $(EPSSOURCES_FROM_DOT) $(EPSSOURCES_FROM_TEX) $(EPSSOURCES_FROM_FIG)
+	find . -name '*.fcv' -o -name '*.ltms' | xargs rm -f
 
 touchsvg:
 	find . -name '*.svg' | xargs touch
@@ -219,8 +609,13 @@ ls-unused:
 	find . -name .unused | xargs ls
 
 neatfreak: distclean
-	# Don't forget to regenerate the .pdf from each .svg file
 	find . -name '*.pdf' | xargs rm -f
+
+periodcheck:
+	utilities/periodcheck.sh
+
+periodcheck-auto: $(targ)
+	utilities/periodcheck.sh
 
 .SECONDEXPANSION:
 $(ABBREVTARGETS): %: perfbook-$$@.pdf

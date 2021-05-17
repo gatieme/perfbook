@@ -1,28 +1,36 @@
 % cpu/hwfreelunch.tex
+% mainfile: ../perfbook.tex
 % SPDX-License-Identifier: CC-BY-SA-3.0
 
 \section{Hardware Free Lunch?}
 \label{sec:cpu:Hardware Free Lunch?}
+%
+\epigraph{The great trouble today is that there are too many people looking
+	  for someone else to do something for them.
+	  The solution to most of our troubles is to be found in everyone
+	  doing something for themselves.}
+	 {\emph{Henry Ford, updated}}
 
 The major reason that concurrency has been receiving so much focus over
-the past few years is the end of Moore's-Law induced single-threaded
+the past few years is the end of \IXaltr{Moore's-Law}{Moore's Law}
+induced single-threaded
 performance increases
 (or ``free lunch''~\cite{HerbSutter2008EffectiveConcurrency}),
 as shown in
-Figure~\ref{fig:intro:Clock-Frequency Trend for Intel CPUs} on
-page~\pageref{fig:intro:Clock-Frequency Trend for Intel CPUs}.
+\cref{fig:intro:Clock-Frequency Trend for Intel CPUs} on
+\cpageref{fig:intro:Clock-Frequency Trend for Intel CPUs}.
 This section briefly surveys a few ways that hardware designers
-might be able to bring back some form of the ``free lunch''.
+might bring back the ``free lunch''.
 
 However, the preceding section presented some substantial hardware
 obstacles to exploiting concurrency.
 One severe physical limitation that hardware designers face is the
 finite speed of light.
 As noted in
-Figure~\ref{fig:cpu:System Hardware Architecture} on
-page~\pageref{fig:cpu:System Hardware Architecture},
-light can travel only about an 8-centimeters round trip
-in a vacuum during the duration of a 1.8\,GHz clock period.
+\cref{fig:cpu:System Hardware Architecture} on
+\cpageref{fig:cpu:System Hardware Architecture},
+light can manage only about an 8-centimeters round trip in a vacuum
+during the duration of a 1.8\,GHz clock period.
 This distance drops to about 3~centimeters for a 5\,GHz clock.
 Both of these distances are relatively small compared to the size
 of a modern computer system.
@@ -36,14 +44,14 @@ Furthermore, relatively low speed and high power drivers are required
 to move electrical signals from one silicon die to another, for example,
 to communicate between a CPU and main memory.
 
-\QuickQuiz{}
+\QuickQuiz{
 	But individual electrons don't move anywhere near that fast,
 	even in conductors!!!
-	The electron drift velocity in a conductor under the low voltages
-	found in semiconductors is on the order of only one \emph{millimeter}
+	The electron drift velocity in a conductor under semiconductor
+	voltage levels is on the order of only one \emph{millimeter}
 	per second.
 	What gives???
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Electron drift velocity tracks the long-term movement of individual
 	electrons.
 	It turns out that individual electrons bounce around quite
@@ -51,7 +59,7 @@ to communicate between a CPU and main memory.
 	over the long term, they don't move very far.
 	In this, electrons resemble long-distance commuters, who
 	might spend most of their time traveling at full highway
-	speed, but over the long term going nowhere.
+	speed, but over the long term go nowhere.
 	These commuters' speed might be 70 miles per hour
 	(113 kilometers per hour), but their long-term drift velocity
 	relative to the planet's surface is zero.
@@ -100,7 +108,7 @@ to communicate between a CPU and main memory.
 
 	Of course, to fully understand this topic, you should read
 	up on electrodynamics.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 There are nevertheless some technologies (both hardware and software)
 that might help improve matters:
@@ -123,7 +131,7 @@ very thin silicon dies to each other in a vertical stack.
 This practice provides potential benefits, but also poses
 significant fabrication challenges~\cite{JohnKnickerbocker2008:3DI}.
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{cpu/3DI}}
 \caption{Latency Benefit of 3D Integration}
@@ -132,7 +140,7 @@ significant fabrication challenges~\cite{JohnKnickerbocker2008:3DI}.
 
 Perhaps the most important benefit of 3DI is decreased path length through
 the system, as shown in
-Figure~\ref{fig:cpu:Latency Benefit of 3D Integration}.
+\cref{fig:cpu:Latency Benefit of 3D Integration}.
 A 3-centimeter silicon die is replaced with a stack of four 1.5-centimeter
 dies, in theory decreasing the maximum path through the system by a factor
 of two, keeping in mind that each layer is quite thin.
@@ -188,18 +196,18 @@ atoms on each of the billions of devices on a chip will have most
 excellent bragging rights, if nothing else!
 
 \subsection{Light, Not Electrons}
-\label{sec:cpu:Light, Not Electrons}
+\label{sec:cpu:Light; Not Electrons}
 
 Although the speed of light would be a hard limit, the fact is that
 semiconductor devices are limited by the speed of electricity rather
 than that of light, given that electric waves in semiconductor materials
-move at between 3\% and 30\% of the speed of light in a vacuum.
+move at between 3\,\% and 30\,\% of the speed of light in a vacuum.
 The use of copper connections on silicon devices is one way to increase
 the speed of electricity, and it is quite possible that additional
 advances will push closer still to the actual speed of light.
 In addition, there have been some experiments with tiny optical fibers
 as interconnects within and between chips, based on the fact that
-the speed of light in glass is more than 60\% of the speed of light
+the speed of light in glass is more than 60\,\% of the speed of light
 in a vacuum.
 One obstacle to such optical fibers is the inefficiency conversion
 between electricity and light and vice versa, resulting in both
@@ -245,6 +253,9 @@ In part due to these sorts of economic considerations, specialized
 hardware has thus far appeared only for a few application areas,
 including graphics processing (GPUs), vector processors (MMX, SSE,
 and VMX instructions), and, to a lesser extent, encryption.
+And even in these areas, it is not always easy to realize the expected
+performance gains, for example, due to thermal
+throttling~\cite{VladKrasnov2017SIMDfreqscale,DanielLemire2018SIMDfreqscale,TravisDowns2020SIMDfreqscale}.
 
 Unlike the server and PC arena, smartphones have long used a wide
 variety of hardware accelerators.
@@ -253,13 +264,13 @@ so much so that a high-end MP3 player might be able to play audio
 for several minutes---with its CPU fully powered off the entire time.
 The purpose of these accelerators is to improve energy efficiency
 and thus extend battery life: special purpose hardware can often
-compute more efficiently than can a general-purpose CPU.
+compute more efficiently than can a general-purpose CPU\@.
 This is another example of the principle called out in
-Section~\ref{sec:intro:Generality}: Generality is almost never free.
+\cref{sec:intro:Generality}: \IX{Generality} is almost never free.
 
-Nevertheless, given the end of Moore's-Law-induced single-threaded
-performance increases, it seems safe to predict that there will
-be an increasing variety of special-purpose hardware going forward.
+Nevertheless, given the end of \IXaltr{Moore's-Law}{Moore's Law}-induced
+single-threaded performance increases, it seems safe to assume that
+increasing varieties of special-purpose hardware will appear.
 
 \subsection{Existing Parallel Software}
 \label{sec:cpu:Existing Parallel Software}

@@ -18,7 +18,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2016 Paul E. McKenney, IBM.
+ * Copyright (c) 2016-2019 Paul E. McKenney, IBM.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 /*
@@ -139,7 +140,7 @@ static __inline__ int atomic_inc_and_test(atomic_t *v)
  */
 static __inline__ int atomic_add_negative(int i, atomic_t *v)
 {
-	return __atomic_add_fetch(&v->counter, 1, __ATOMIC_SEQ_CST) < 0;
+	return __atomic_add_fetch(&v->counter, i, __ATOMIC_SEQ_CST) < 0;
 }
 
 /**
@@ -151,7 +152,7 @@ static __inline__ int atomic_add_negative(int i, atomic_t *v)
  */
 static __inline__ int atomic_add_return(int i, atomic_t *v)
 {
-	return __atomic_add_fetch(&v->counter, 1, __ATOMIC_SEQ_CST);
+	return __atomic_add_fetch(&v->counter, i, __ATOMIC_SEQ_CST);
 }
 
 static __inline__ int atomic_sub_return(int i, atomic_t *v)
@@ -168,8 +169,8 @@ struct __xchg_dummy {
 ({ \
 	typeof(*ptr) _____actual = (o); \
 	\
-	(void)__atomic_compare_exchange_n(ptr, (void *)&_____actual, (n), 1, \
-					  __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST); \
+	__atomic_compare_exchange_n((ptr), (void *)&_____actual, (n), 0, \
+			__ATOMIC_SEQ_CST, __ATOMIC_RELAXED); \
 	_____actual; \
 })
 

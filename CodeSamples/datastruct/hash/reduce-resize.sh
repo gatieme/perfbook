@@ -18,9 +18,10 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# Copyright (C) IBM Corporation, 2013
+# Copyright (C) IBM Corporation, 2013-2019
+# Copyright (C) Facebook, 2019
 #
-# Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+# Authors: Paul E. McKenney <paulmck@kernel.org>
 
 tag="$1"
 
@@ -33,62 +34,71 @@ awk < $T/filt '
 /^nlookups:/ {
 		for (i = 1; i <= NF; i++) {
 			if ($i ~ /[0-9][0-9]*/)
-				l[i] += $i;
+				l[old][i] += $i;
 			else
-				l[i] = $i;
+				l[old][i] = $i;
 		}
 	}
 
-/^hash/ && $0 != old && old != "" {
-		n = 0;
-		for (i in l)
-			n++;
-		for (i = 1; i <= n; i++) {
-			printf "%s", l[i] " ";
-			l[i] = "";
-		}
-		print "@@@ " old;
+/^hash/ {
 		old = $0;
-	}
-
-/^hash/ && old == "" {
-		old = $0;
+		sig[$0] = 1;
 	}
 
 END	{
-		n = 0;
-		for (i in l)
-			n++;
-		for (i = 1; i <= n; i++) {
-			printf "%s", l[i] " ";
-			l[i] = "";
+		for (old in sig) {
+			n = 0;
+			for (i in l[old])
+				n++;
+			for (i = 1; i <= n; i++)
+				printf "%s", l[old][i] " ";
+			print "@@@ " old;
 		}
-		print "@@@ " old;
 	}' > $T/sum
 
+# Find little and big numbers of buckets
+nb="`grep -e --nbuckets $T/sum |
+	sed -e 's/^.*--nbuckets //' | sed -e 's/ .*$//' | sort -u -k1n`"
+nbs="`echo $nb | awk '{ print $1 }'`"
+nbl="`echo $nb | awk '{ print $2 }'`"
+
 # Produce .dat files for small fixed-size hash-table runs
-grep -v -e '--resizemult' $T/sum | grep -e '--nbuckets 1024' |
-awk -v tag="$tag" \
+ggrep -e '# S$' $T/sum |
+awk -v tag="$tag" -v T=$T \
 	'{
 		dur = $9;
-		print($14, $2 / dur) > "perftestS." $18 "." tag ".dat"
+		print($14, $2 / dur) > T "/perftestS." $18 "." tag ".dat"
 	}'
 
 # Produce .dat files for resizable hash-table runs
-grep -e '--resizemult' $T/sum |
-awk -v tag="$tag" \
+grep -e '# R$' $T/sum |
+awk -v tag="$tag" -v T=$T \
 	'{
 		dur = $9;
-		print($14, $2 / dur) > "perftestR." $18 "." tag ".dat"
+		print($14, $2 / dur) > T "/perftestR." $18 "." tag ".dat"
 	}'
 
 # Produce .dat files for large fixed-size hash-table runs
-grep -v -e '--resizemult' $T/sum | grep -e '--nbuckets 2048' |
-awk -v tag="$tag" \
+grep -e '# L$' $T/sum |
+awk -v tag="$tag" -v T=$T \
 	'{
 		dur = $9;
-		print($14, $2 / dur) > "perftestL." $18 "." tag ".dat"
+		print($14, $2 / dur) > T "/perftestL." $18 "." tag ".dat"
 	}'
+
+# Produce .dat files for large fixed-size large-buckets hash-table runs
+grep -e '# LL$' $T/sum |
+awk -v tag="$tag" -v T=$T \
+	'{
+		dur = $9;
+		print($14, $2 / dur) > T "/perftestLL." $18 "." tag ".dat"
+	}'
+
+datfiles="`cd $T; ls perftest*.dat`"
+for i in $datfiles
+do
+	sort -k1n $T/$i > $i
+done
 
 echo "Hit ^C to continue:"
 sleep 10000

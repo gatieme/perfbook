@@ -16,7 +16,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2013 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2013-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include "../../defer/hazptr.h"
@@ -80,6 +81,13 @@ static void hashtab_lock_mod(struct hashtab *htp, unsigned long hash)
 static void hashtab_unlock_mod(struct hashtab *htp, unsigned long hash)
 {
 	hashtab_unlock(htp, hash);
+}
+
+/*
+ * Finished using a looked up hashtable element.
+ */
+void hashtab_lookup_done(struct ht_elem *htep)
+{
 }
 
 /*

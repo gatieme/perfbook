@@ -12,35 +12,49 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# Copyright (C) IBM Corporation, 2013
+# Copyright (C) IBM Corporation, 2013-2019
+# Copyright (C) Facebook, 2019
 #
-# Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+# Authors: Paul E. McKenney <paulmck@kernel.org>
 
-nsamples=7
+nsamples=30
 
+csdir="`pwd | sed -e 's,CodeSamples.*$,CodeSamples,'`"
+. $csdir/functions.bash
+
+nbucketslo=$((lastcpu*5*100))
+nbucketslo=`power2up $nbucketslo`
+nbucketshi=$((nbucketslo*2))
 
 # Simple hash tables, read-only.
-for ncpu in 1 4 8 16 24 32 48 60
+for ((i = 0; i < $nsamples; i++))
 do
-	for epw in 2048 16384 131072
+	ncpu=1
+	while test $ncpu -le $lastcpu
 	do
-		for ((i = 0; i < $nsamples; i++))
+		for epwmult in '' '*8'
 		do
-			echo hash_bkt_rcu --perftest --nreaders $ncpu --nbuckets 1024 --elems/writer $epw --duration 1000 --updatewait 0
-			./hash_bkt_rcu --perftest --nreaders $ncpu --nbuckets 1024 --elems/writer $epw --duration 1000 --updatewait 0
-			sleep 1
+			epw=$((nbucketslo$epwmult))
+			echo hash_bkt_rcu --perftest --nreaders $ncpu --nbuckets $nbucketslo --elems/writer $epw --duration 1000 --updatewait 0 '#' S
+			./hash_bkt_rcu --perftest --nreaders $ncpu --nbuckets $nbucketslo --elems/writer $epw --duration 1000 --updatewait 0
+			sleep 0.1
+
+			# resizemult is 8/2, should compute...
+			echo hash_resize --perftest --nreaders $ncpu --nbuckets $nbucketslo --elems/writer $epw --resizemult 4 --duration 1000 --updatewait 0 '#' R
+			./hash_resize --perftest --nreaders $ncpu --nbuckets $nbucketslo --elems/writer $epw --resizemult 4 --duration 1000 --updatewait 0
+			sleep 0.1
+
+			echo hash_bkt_rcu --perftest --nreaders $ncpu --nbuckets $nbucketshi --elems/writer $epw --duration 1000 --updatewait 0 '#' L
+			./hash_bkt_rcu --perftest --nreaders $ncpu --nbuckets $nbucketshi --elems/writer $epw --duration 1000 --updatewait 0
+			sleep 0.1
+
 		done
-		for ((i = 0; i < $nsamples; i++))
-		do
-			echo hash_resize --perftest --nreaders $ncpu --nbuckets 1024 --elems/writer $epw --resizemult 2 --duration 1000 --updatewait 0
-			./hash_resize --perftest --nreaders $ncpu --nbuckets 1024 --elems/writer $epw --resizemult 2 --duration 1000 --updatewait 0
-			sleep 1
-		done
-		for ((i = 0; i < $nsamples; i++))
-		do
-			echo hash_bkt_rcu --perftest --nreaders $ncpu --nbuckets 2048 --elems/writer $epw --duration 1000 --updatewait 0
-			./hash_bkt_rcu --perftest --nreaders $ncpu --nbuckets 2048 --elems/writer $epw --duration 1000 --updatewait 0
-			sleep 1
-		done
+
+		echo hash_bkt_rcu --perftest --nreaders $ncpu --nbuckets $epw --elems/writer $epw --duration 1000 --updatewait 0 '#' LL
+		./hash_bkt_rcu --perftest --nreaders $ncpu --nbuckets $epw --elems/writer $epw --duration 1000 --updatewait 0
+		sleep 0.1
+
+		incr=`power2inc $ncpu 8`
+		ncpu=$((ncpu + incr))
 	done
 done

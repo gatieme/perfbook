@@ -16,7 +16,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2009 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2009-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #define _GNU_SOURCE
@@ -26,6 +27,7 @@
 #include <errno.h>
 #include "../api.h"
 
+// \begin{snippet}[labelbase=ln:toolsoftrade:pcreate:mythread,keepcomment=yes,commandchars=\$\@\^]
 int x = 0;
 
 void *mythread(void *arg)
@@ -37,21 +39,24 @@ void *mythread(void *arg)
 
 int main(int argc, char *argv[])
 {
+	int en;
 	pthread_t tid;
 	void *vp;
 
-	if (pthread_create(&tid, NULL, mythread, NULL) != 0) {
-		perror("pthread_create");
-		exit(-1);
+	if ((en = pthread_create(&tid, NULL,		//\lnlbl{create:a}
+	                         mythread, NULL)) != 0) {//\lnlbl{create:b}
+		fprintf(stderr, "pthread_create: %s\n", strerror(en));
+		exit(EXIT_FAILURE);
 	}
 
 	/* parent */
 
-	if (pthread_join(tid, &vp) != 0) {
-		perror("pthread_join");
-		exit(-1);
+	if ((en = pthread_join(tid, &vp)) != 0) {	//\lnlbl{join}
+		fprintf(stderr, "pthread_join: %s\n", strerror(en));
+		exit(EXIT_FAILURE);
 	}
 	printf("Parent process sees x=%d\n", x);
 
-	return 0;
+	return EXIT_SUCCESS;
 }
+// \end{snippet}

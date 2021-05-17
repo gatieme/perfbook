@@ -1,8 +1,11 @@
 % defer/hazptr.tex
-% Can I hazptr cheezeberger?
+% mainfile: ../perfbook.tex
+% From an C++ Standards Committee meeting:  "Can I hazptr cheezeberger?"
 
 \section{Hazard Pointers}
 \label{sec:defer:Hazard Pointers}
+%
+\epigraph{If in doubt, turn it inside out.}{\emph{Zara Carpenter}}
 
 One way of avoiding problems with concurrent reference counting
 is to implement the reference counters
@@ -19,122 +22,37 @@ Therefore, if that element has been rendered inaccessible to readers,
 and there are no longer any hazard pointers referencing it, that element
 may safely be freed.
 
-\begin{figure}[btp]
-{ \scriptsize
-\begin{verbbox}
- 1 int hp_store(void **p, void **hp)
- 2 {
- 3   void *tmp;
- 4 
- 5   tmp = READ_ONCE(*p);
- 6   WRITE_ONCE(*hp, tmp);
- 7   smp_mb();
- 8   if (tmp != READ_ONCE(*p) ||
- 9       tmp == HAZPTR_POISON) {
-10     WRITE_ONCE(*hp, NULL);
-11     return 0;
-12   }
-13   return 1;
-14 }
-15 
-16 void hp_erase(void **hp)
-17 {
-18   smp_mb();
-19   WRITE_ONCE(*hp, NULL);
-20   hp_free(hp);
-21 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Hazard-Pointer Storage and Erasure}
-\label{fig:defer:Hazard-Pointer Storage and Erasure}
-\end{figure}
+\begin{listing}
+\input{CodeSamples/defer/hazptr@record_clear.fcv}
+\caption{Hazard-Pointer Recording and Clearing}
+\label{lst:defer:Hazard-Pointer Recording and Clearing}
+\end{listing}
 
 Of course, this means that hazard-pointer acquisition must be carried
 out quite carefully in order to avoid destructive races with concurrent
 deletion.
+\begin{fcvref}[ln:defer:hazptr:record_clear]
 One implementation is shown in
-Figure~\ref{fig:defer:Hazard-Pointer Storage and Erasure},
-which shows \co{hp_store()} on lines~1-13 and \co{hp_erase()} on
-lines~15-20.
-The \co{smp_mb()} primitive will be described in detail in
-Section~\ref{sec:advsync:Memory Barriers}, but may be ignored for
-the purposes of this brief overview.
+\cref{lst:defer:Hazard-Pointer Recording and Clearing},
+which shows \co{hp_try_record()} on \clnrefrange{htr:b}{htr:e},
+\co{hp_record()} on \clnrefrange{hr:b}{hr:e}, and
+\co{hp_clear()} on
+\clnrefrange{hc:b}{hc:e} (\path{hazptr.h}).
 
-The \co{hp_store()} function records a hazard pointer at \co{hp} for the data
-element whose pointer is referenced by \co{p}, while checking for
-concurrent modifications.
-If a concurrent modification occurred, \co{hp_store()} refuses to record
-a hazard pointer, and returns zero to indicate that the caller must
-restart its traversal from the beginning.
-Otherwise, \co{hp_store()} returns one to indicate that it successfully
-recorded a hazard pointer for the data element.
+The \co{hp_try_record()} macro on \clnref{htr:e} is simply a casting
+wrapper for the \co{_h_t_r_impl()} function, which attempts to store
+the pointer referenced by \co{p} into the hazard pointer referenced
+by \co{hp}.
+If successful, it returns the value of the stored pointer.
+If it fails due to that pointer being \co{NULL}, it returns \co{NULL}.
+Finally, if it fails due to racing with an update, it returns a special
+\co{HAZPTR_POISON} token.
 
-\QuickQuiz{}
-	Why does \co{hp_store()} in
-	Figure~\ref{fig:defer:Hazard-Pointer Storage and Erasure}
-	take a double indirection to the data element?
-	Why not \co{void *} instead of \co{void **}?
-\QuickQuizAnswer{
-	Because \co{hp_record()} must check for concurrent modifications.
-	To do that job, it needs a pointer to a pointer to the element,
-	so that it can check for a modification to the pointer to the
-	element.
-} \QuickQuizEnd
-
-\QuickQuiz{}
-	Why does \co{hp_store()}'s caller need to restart its
-	traversal from the beginning in case of failure?
-	Isn't that inefficient for large data structures?
-\QuickQuizAnswer{
-	It might be inefficient in some sense, but the fact is that
-	such restarting is absolutely required for correctness.
-	To see this, consider a hazard-pointer-protected linked list
-	containing elements~A, B, and~C that is subjecte to the
-	following sequence of events:
-
-	\begin{enumerate}
-	\item	Thread~0 stores a hazard pointer to element~B
-		(having presumably traversed to element~B from element~A).
-	\item	Thread~1 removes element~B from the list, which sets
-		the pointer from element~B to element~C to a special
-		\co{HAZPTR_POISON} value in order to mark the deletion.
-		Because Thread~0 has a hazard pointer to element~B,
-		it cannot yet be freed.
-	\item	Thread~1 removes element~C from the list.
-		Because there are no hazard pointers referencing element~C,
-		it is immediately freed.
-	\item	Thread~0 attempts to acquire a hazard pointer to
-		now-removed element~B's successor, but sees the
-		\co{HAZPTR_POISON} value, and thus returns zero,
-		forcing the caller to restart its traversal from the
-		beginning of the list.
-	\end{enumerate}
-
-	Which is a very good thing, because otherwise Thread~0 would
-	have attempted to access the now-freed element~C,
-	which might have resulted in arbitrarily horrible
-	memory corruption, especially if the memory for
-	element~C had since been re-allocated for some other
-	purpose.
-
-	All that aside, please understand that hazard pointers's
-	restarting allows it to maintain a minimal memory footprint.
-	Any object not currently referenced by some hazard pointer
-	may be immediately freed.
-	In contrast,
-	Section~\ref{sec:defer:Read-Copy Update (RCU)}
-	will discuss a mechanism that avoids read-side retries
-	(and minimizes read-side overhead), but has a much larger
-	memory footprint.
-} \QuickQuizEnd
-
-\QuickQuiz{}
+\QuickQuiz{
 	Given that papers on hazard pointers use the bottom bits
 	of each pointer to mark deleted elements, what is up with
 	\co{HAZPTR_POISON}?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	The published implementations of hazard pointers used
 	non-blocking synchronization techniques for insertion
 	and deletion.
@@ -148,217 +66,337 @@ recorded a hazard pointer for the data element.
 	complete their updates, which in turn allows us to leave
 	pointers' bottom bits alone.
 	This approach allows read-side code to be simpler and faster.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
-Because algorithms using hazard pointers might be restarted at any
-step of their traversal through the data structure, such algorithms
-must typically take care to avoid making any changes to the data
-structure until after they have acquired all relevant hazard pointers.
+\Clnref{htr:ro1} reads the pointer to the object to be protected.
+If \clnref{htr:race1} finds that this pointer was either \co{NULL} or
+the special \co{HAZPTR_POISON} deleted-object token, it returns
+the pointer's value to inform the caller of the failure.
+Otherwise, \clnref{htr:store} stores the pointer into the specified
+hazard pointer, and \clnref{htr:mb} forces full ordering of that
+store with the reload of the original pointer on \clnref{htr:ro2}.
+(See \cref{chp:Advanced Synchronization: Memory Ordering}
+for more information on memory ordering.)
+If the value of the original pointer has not changed, then the hazard
+pointer protects the pointed-to object, and in that case,
+\clnref{htr:success} returns a pointer to that object, which also
+indicates success to the caller.
+Otherwise, if the pointer changed between the two \co{READ_ONCE()}
+invocations, \clnref{htr:race2} indicates failure.
 
-\QuickQuiz{}
-	But don't these restrictions on hazard pointers also apply
-	to other forms of reference counting?
-\QuickQuizAnswer{
-	These restrictions apply only to reference-counting mechanisms whose
-	reference acquisition can fail.
-} \QuickQuizEnd
+\QuickQuiz{
+	Why does \co{hp_try_record()} in
+	\cref{lst:defer:Hazard-Pointer Recording and Clearing}
+	take a double indirection to the data element?
+	Why not \co{void *} instead of \co{void **}?
+}\QuickQuizAnswer{
+	Because \co{hp_try_record()} must check for concurrent modifications.
+	To do that job, it needs a pointer to a pointer to the element,
+	so that it can check for a modification to the pointer to the
+	element.
+}\QuickQuizEnd
 
-These restrictions result in great benefits to readers, courtesy of the
-fact that the hazard pointers are stored local to each CPU or thread,
-which in turn allows traversals of the data structures themselves to
-be carried out in a completely read-only fashion.
-Referring back to
-Figure~\ref{fig:count:Optimization and the Four Parallel-Programming Tasks}
-on
-page~\pageref{fig:count:Optimization and the Four Parallel-Programming Tasks},
-hazard pointers enable the CPU caches to do resource replication, which
-in turn allows weakening of the parallel-access-control mechanism,
-thus boosting performance and scalability.
-Performance comparisons with other mechanisms may be found in
-Chapter~\ref{chp:Data Structures}
-and in other publications~\cite{ThomasEHart2007a,McKenney:2013:SDS:2483852.2483867,MagedMichael04a}.
+The \co{hp_record()} function is quite straightforward: It repeatedly
+invokes \co{hp_try_record()} until the return value is something other
+than \co{HAZPTR_POISON}.
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
- 1 struct route_entry {
- 2   struct hazptr_head hh;
- 3   struct route_entry *re_next;
- 4   unsigned long addr;
- 5   unsigned long iface;
- 6   int re_freed;
- 7 };
- 8 struct route_entry route_list;
- 9 DEFINE_SPINLOCK(routelock);
-10 hazard_pointer __thread *my_hazptr;
-11
-12 unsigned long route_lookup(unsigned long addr)
-13 {
-14   int offset = 0;
-15   struct route_entry *rep;
-16   struct route_entry **repp;
-17
-18 retry:
-19   repp = &route_list.re_next;
-20   do {
-21     rep = READ_ONCE(*repp);
-22     if (rep == NULL)
-23       return ULONG_MAX;
-24     if (rep == (struct route_entry *)HAZPTR_POISON)
-25       goto retry;
-26     my_hazptr[offset].p = &rep->hh;
-27     offset = !offset;
-28     smp_mb();
-29     if (READ_ONCE(*repp) != rep)
-30       goto retry;
-31     repp = &rep->re_next;
-32   } while (rep->addr != addr);
-33   if (READ_ONCE(rep->re_freed))
-34     abort();
-35   return rep->iface;
-36 }
-\end{verbbox}
-}
-\centering
-\theverbbox
+\QuickQuiz{
+	Why bother with \co{hp_try_record()}?
+	Wouldn't it be easier to just use the failure-immune
+	\co{hp_record()} function?
+}\QuickQuizAnswer{
+	It might be easier in some sense, but as will be seen in the
+	Pre-BSD routing example, there are situations for which
+	\co{hp_record()} simply does not work.
+}\QuickQuizEnd
+
+The \co{hp_clear()} function is even more straightforward, with
+an \co{smp_mb()} to force full ordering between the caller's uses
+of the object protected by the hazard pointer and the setting of
+the hazard pointer to \co{NULL}.
+\end{fcvref}
+
+\begin{listing}
+\ebresizeverb{.91}{\input{CodeSamples/defer/hazptr@scan_free.fcv}}
+\caption{Hazard-Pointer Scanning and Freeing}
+\label{lst:defer:Hazard-Pointer Scanning and Freeing}
+\end{listing}
+
+\begin{fcvref}[ln:defer:hazptr:scan_free:free]
+Once a hazard-pointer-protected object has been removed from its
+linked data structure, so that it is now inaccessible to future
+hazard-pointer readers, it is passed to \co{hazptr_free_later()},
+which is shown on \clnrefrange{b}{e} of
+\cref{lst:defer:Hazard-Pointer Scanning and Freeing}
+(\path{hazptr.c}).
+\Clnref{enq:b,enq:e}
+enqueue the object on a per-thread list \co{rlist}
+and \clnref{count} counts the object in \co{rcount}.
+If \clnref{check} sees that a sufficiently large number of objects are now
+queued, \clnref{scan} invokes \co{hazptr_scan()} to attempt to
+free some of them.
+\end{fcvref}
+
+\begin{fcvref}[ln:defer:hazptr:scan_free:scan]
+The \co{hazptr_scan()} function is shown on \clnrefrange{b}{e}
+of the listing.
+This function relies on a fixed maximum number of threads (\co{NR_THREADS})
+and a fixed maximum number of hazard pointers per thread (\co{K}),
+which allows a fixed-size array of hazard pointers to be used.
+Because any thread might need to scan the hazard pointers, each thread
+maintains its own array, which is referenced by the per-thread variable
+\co{gplist}.
+If \clnref{check} determines that this thread has not yet allocated its
+\co{gplist}, \clnrefrange{alloc:b}{alloc:e} carry out the allocation.
+The memory barrier on \clnref{mb1} ensures that all threads see the
+removal of all objects by this thread before
+\clnrefrange{loop:b}{loop:e} scan
+all of the hazard pointers, accumulating non-NULL pointers into
+the \co{plist} array and counting them in \co{psize}.
+The memory barrier on \clnref{mb2} ensures that the reads of
+the hazard pointers
+happen before any objects are freed.
+\Clnref{sort} then sorts this array to enable use of binary search below.
+
+\Clnref{rem:b,rem:e}
+remove all elements from this thread's list of
+to-be-freed objects, placing them on the local \co{tmplist}
+and \clnref{zero} zeroes the count.
+Each pass through the loop spanning
+\clnrefrange{loop2:b}{loop2:e} processes each
+of the to-be-freed objects.
+\Clnref{rem1st:b,rem1st:e}
+remove the first object from \co{tmplist},
+and if \clnref{chkhazp:b,chkhazp:e}
+determine that there is a hazard pointer
+protecting this object, \clnrefrange{back:b}{back:e}
+place it back onto \co{rlist}.
+Otherwise, \clnref{free} frees the object.
+\end{fcvref}
+
+\begin{listing}
+\input{CodeSamples/defer/route_hazptr@lookup.fcv}
 \caption{Hazard-Pointer Pre-BSD Routing Table Lookup}
-\label{fig:defer:Hazard-Pointer Pre-BSD Routing Table Lookup}
-\end{figure}
-
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
- 1 int route_add(unsigned long addr,
- 2               unsigned long interface)
- 3 {
- 4   struct route_entry *rep;
- 5
- 6   rep = malloc(sizeof(*rep));
- 7   if (!rep)
- 8     return -ENOMEM;
- 9   rep->addr = addr;
-10   rep->iface = interface;
-11   rep->re_freed = 0;
-12   spin_lock(&routelock);
-13   rep->re_next = route_list.re_next;
-14   route_list.re_next = rep;
-15   spin_unlock(&routelock);
-16   return 0;
-17 }
-18
-19 int route_del(unsigned long addr)
-20 {
-21   struct route_entry *rep;
-22   struct route_entry **repp;
-23
-24   spin_lock(&routelock);
-25   repp = &route_list.re_next;
-26   for (;;) {
-27     rep = *repp;
-28     if (rep == NULL)
-29       break;
-30     if (rep->addr == addr) {
-31       *repp = rep->re_next;
-32       rep->re_next =
-33           (struct route_entry *)HAZPTR_POISON;
-34       spin_unlock(&routelock);
-35       hazptr_free_later(&rep->hh);
-36       return 0;
-37     }
-38     repp = &rep->re_next;
-39   }
-40   spin_unlock(&routelock);
-41   return -ENOENT;
-42 }
-\end{verbbox}
-}
-\centering
-\theverbbox
-\caption{Hazard-Pointer Pre-BSD Routing Table Add/Delete}
-\label{fig:defer:Hazard-Pointer Pre-BSD Routing Table Add/Delete}
-\end{figure}
+\label{lst:defer:Hazard-Pointer Pre-BSD Routing Table Lookup}
+\end{listing}
 
 The Pre-BSD routing example can use hazard pointers as shown in
-Figure~\ref{fig:defer:Hazard-Pointer Pre-BSD Routing Table Lookup}
+\cref{lst:defer:Hazard-Pointer Pre-BSD Routing Table Lookup}
 for data structures and \co{route_lookup()}, and in
-Figure~\ref{fig:defer:Hazard-Pointer Pre-BSD Routing Table Add/Delete}
+\cref{lst:defer:Hazard-Pointer Pre-BSD Routing Table Add/Delete}
 for \co{route_add()} and \co{route_del()}
 (\path{route_hazptr.c}).
 As with reference counting, the hazard-pointers implementation
 is quite similar to the sequential algorithm shown in
-Figure~\ref{fig:defer:Sequential Pre-BSD Routing Table}
+\cref{lst:defer:Sequential Pre-BSD Routing Table}
 on
-page~\pageref{fig:defer:Sequential Pre-BSD Routing Table},
+\cpageref{lst:defer:Sequential Pre-BSD Routing Table},
 so only differences will be discussed.
 
+\begin{fcvref}[ln:defer:route_hazptr:lookup]
 Starting with
-Figure~\ref{fig:defer:Hazard-Pointer Pre-BSD Routing Table Lookup},
-line~2 shows the \co{->hh} field used to queue objects pending
+\cref{lst:defer:Hazard-Pointer Pre-BSD Routing Table Lookup},
+\clnref{hh} shows the \co{->hh} field used to queue objects pending
 hazard-pointer free,
-line~6 shows the \co{->re_freed} field used to detect use-after-free bugs,
-and lines~24-30 attempt to acquire a hazard pointer, branching
-to line~18's \co{retry} label on failure.
+\clnref{re_freed} shows the \co{->re_freed} field used to detect
+use-after-free bugs, and \clnref{tryrecord} invokes
+\co{hp_try_record()} to attempt to acquire a hazard pointer.
+If the return value is \co{NULL}, \clnref{NULL} returns a not-found
+indication to the caller.
+If the call to \co{hp_try_record()} raced with deletion, \clnref{deleted}
+branches back to \clnref{retry}'s \co{retry} to re-traverse the list
+from the beginning.
+The \co{do}--\co{while} loop falls through when the desired element is
+located, but if this element has already been freed, \clnref{abort}
+terminates the program.
+Otherwise, the element's \co{->iface} field is returned to the caller.
 
-In
-Figure~\ref{fig:defer:Hazard-Pointer Pre-BSD Routing Table Add/Delete},
-line~11 initializes \co{->re_freed},
-lines~32 and~33 poison the \co{->re_next} field of the newly removed
+Note that \clnref{tryrecord} invokes \co{hp_try_record()} rather
+than the easier-to-use \co{hp_record()}, restarting the full search
+upon \co{hp_try_record()} failure.
+And such restarting is absolutely required for correctness.
+To see this, consider a hazard-pointer-protected linked list
+containing elements~A, B, and~C that is subjected to the following
+sequence of events:
+\end{fcvref}
+
+\begin{enumerate}
+\item	Thread~0 stores a hazard pointer to element~B
+	(having presumably traversed to element~B from element~A).
+\item	Thread~1 removes element~B from the list, which sets
+	the pointer from element~B to element~C to the special
+	\co{HAZPTR_POISON} value in order to mark the deletion.
+	Because Thread~0 has a hazard pointer to element~B,
+	it cannot yet be freed.
+\item	Thread~1 removes element~C from the list.
+	Because there are no hazard pointers referencing element~C,
+	it is immediately freed.
+\item	Thread~0 attempts to acquire a hazard pointer to now-removed
+	element~B's successor, but \co{hp_try_record()} returns the
+	\co{HAZPTR_POISON} value, forcing the caller to restart its
+	traversal from the beginning of the list.
+\end{enumerate}
+
+Which is a very good thing, because B's successor is the now-freed
+element~C, which means that Thread~0's subsequent accesses might have
+resulted in arbitrarily horrible memory corruption, especially if the
+memory for element~C had since been re-allocated for some other purpose.
+Therefore, hazard-pointer readers must typically restart the full
+traversal in the face of a concurrent deletion.
+Often the restart must go back to some global (and thus immortal) pointer,
+but it is sometimes possible to restart at some intermediate location
+if that location is guaranteed to still be live, for example, due to
+the current thread holding a lock, a reference count, etc.
+
+\QuickQuiz{
+	Readers must ``typically'' restart?
+	What are some exceptions?
+}\QuickQuizAnswer{
+	If the pointer emanates from a global variable or is otherwise
+	not subject to being freed, then \co{hp_record()} may be
+	used to repeatedly attempt to record the hazard pointer,
+	even in the face of concurrent deletions.
+
+	In certain cases, restart can be avoided by using link counting
+	as exemplified by the UnboundedQueue and ConcurrentHashMap data
+	structures implemented in Folly open-source library.\footnote{
+		\url{https://github.com/facebook/folly}}
+}\QuickQuizEnd
+
+Because algorithms using hazard pointers might be restarted at any
+step of their traversal through the linked data structure, such algorithms
+must typically take care to avoid making any changes to the data
+structure until after they have acquired all the hazard pointers that
+are required for the update in question.
+
+\QuickQuiz{
+	But don't these restrictions on hazard pointers also apply
+	to other forms of reference counting?
+}\QuickQuizAnswer{
+	Yes and no.
+	These restrictions apply only to reference-counting mechanisms whose
+	reference acquisition can fail.
+}\QuickQuizEnd
+
+These hazard-pointer restrictions result in great benefits to readers,
+courtesy of the fact that the hazard pointers are stored local to each
+CPU or thread, which in turn allows traversals to be carried out without
+any writes to the data structures being traversed.
+Referring back to
+\cref{fig:count:Optimization and the Four Parallel-Programming Tasks}
+on
+\cpageref{fig:count:Optimization and the Four Parallel-Programming Tasks},
+hazard pointers enable the CPU caches to do resource replication, which
+in turn allows weakening of the parallel-access-control mechanism,
+thus boosting performance and scalability.
+
+Another advantage of restarting hazard pointers traversals is a reduction in
+minimal memory footprint:
+Any object not currently referenced by some hazard pointer may be
+immediately freed.
+In contrast,
+\cref{sec:defer:Read-Copy Update (RCU)}
+will discuss a mechanism that avoids read-side retries (and minimizes
+read-side overhead), but which can result in a much larger memory
+footprint.
+
+\begin{listing}
+\input{CodeSamples/defer/route_hazptr@add_del.fcv}
+\caption{Hazard-Pointer Pre-BSD Routing Table Add\slash Delete}
+\label{lst:defer:Hazard-Pointer Pre-BSD Routing Table Add/Delete}
+\end{listing}
+
+\begin{fcvref}[ln:defer:route_hazptr:add_del]
+The \co{route_add()} and \co{route_del()} functions are shown in
+\cref{lst:defer:Hazard-Pointer Pre-BSD Routing Table Add/Delete}.
+\Clnref{init_freed} initializes \co{->re_freed},
+\clnref{poison} poisons the \co{->re_next} field of the newly removed
 object, and
-line~35 passes that object to the hazard pointers's
+\clnref{free_later} passes that object to the
 \co{hazptr_free_later()} function, which will free that object once it
 is safe to do so.
 The spinlocks work the same as in
-Figure~\ref{fig:defer:Reference-Counted Pre-BSD Routing Table Add/Delete}.
+\cref{lst:defer:Reference-Counted Pre-BSD Routing Table Add/Delete}.
+\end{fcvref}
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{2.5in}{!}{\includegraphics{CodeSamples/defer/perf-hazptr}}
 \caption{Pre-BSD Routing Table Protected by Hazard Pointers}
 \label{fig:defer:Pre-BSD Routing Table Protected by Hazard Pointers}
 \end{figure}
 
-Figure~\ref{fig:defer:Pre-BSD Routing Table Protected by Hazard Pointers}
+\Cref{fig:defer:Pre-BSD Routing Table Protected by Hazard Pointers}
 shows the hazard-pointers-protected Pre-BSD routing algorithm's
 performance on the same read-only workload as for
-Figure~\ref{fig:defer:Pre-BSD Routing Table Protected by Reference Counting}.
-Although hazard pointers scales much better than does reference counting,
+\cref{fig:defer:Pre-BSD Routing Table Protected by Reference Counting}.
+Although hazard pointers scale far better than does reference counting,
 hazard pointers still require readers to do writes to shared
 memory (albeit with much improved locality of reference),
 and also require a full memory barrier and retry check for each
 object traversed.
-Therefore, hazard pointers's performance is far short of ideal.
-On the other hand, hazard pointers do operate correctly for workloads
-involving concurrent updates.
+Therefore, hazard-pointers performance is still far short of ideal.
+On the other hand, unlike naive approaches to concurrent
+reference-counting, hazard pointers not only operate correctly for
+workloads involving concurrent updates, but also exhibit excellent
+scalability.
+Additional performance comparisons with other mechanisms may be found in
+\cref{chp:Data Structures}
+and in other publications~\cite{ThomasEHart2007a,McKenney:2013:SDS:2483852.2483867,MagedMichael04a}.
 
-\QuickQuiz{}
+\QuickQuizSeries{%
+\QuickQuizB{
+	\Cref{fig:defer:Pre-BSD Routing Table Protected by Hazard Pointers}
+	shows no sign of hyperthread-induced flattening at 224 threads.
+	Why is that?
+}\QuickQuizAnswerB{
+	Modern microprocessors are complicated beasts, so significant
+	skepticism is appropriate for any simple answer.
+	That aside, the most likely reason is the full memory barriers
+	required by hazard-pointers readers.
+	Any delays resulting from those memory barriers would make time
+	available to the other hardware thread sharing the core, resulting
+	in greater scalability at the expense of per-hardware-thread
+	performance.
+}\QuickQuizEndB
+%
+\QuickQuizE{
 	The paper ``Structured Deferral: Synchronization via
 	Procrastination''~\cite{McKenney:2013:SDS:2483852.2483867}
 	shows that hazard pointers have near-ideal performance.
 	Whatever happened in
-	Figure~\ref{fig:defer:Pre-BSD Routing Table Protected by Hazard Pointers}???
-\QuickQuizAnswer{
+	\cref{fig:defer:Pre-BSD Routing Table Protected by Hazard Pointers}???
+}\QuickQuizAnswerE{
 	First,
-	Figure~\ref{fig:defer:Pre-BSD Routing Table Protected by Hazard Pointers}
+	\cref{fig:defer:Pre-BSD Routing Table Protected by Hazard Pointers}
 	has a linear y-axis, while most of the graphs in the
 	``Structured Deferral'' paper have logscale y-axes.
 	Next, that paper uses lightly-loaded hash tables, while
-	Figure~\ref{fig:defer:Pre-BSD Routing Table Protected by Hazard Pointers}'s
+	\cref{fig:defer:Pre-BSD Routing Table Protected by Hazard Pointers}'s
 	uses a 10-element simple linked list, which means that hazard pointers
 	face a larger memory-barrier penalty in this workload than in
 	that of the ``Structured Deferral'' paper.
-	Finally, that paper used a larger and older x86 system, while
-	a newer but smaller system was used to generate the data
+	Finally, that paper used an older modest-sized x86 system, while
+	a much newer and larger system was used to generate the data
 	shown in
-	Figure~\ref{fig:defer:Pre-BSD Routing Table Protected by Hazard Pointers}.
+	\cref{fig:defer:Pre-BSD Routing Table Protected by Hazard Pointers}.
+
+	In addition, use of pairwise asymmetric
+	barriers~\cite{Windows2008FlushProcessWriteBuffers,JonathanCorbet2010sys-membarrier,Linuxmanpage2018sys-membarrier}
+	has been proposed to eliminate the read-side hazard-pointer
+	memory barriers on systems supporting this notion~\cite{DavidGoldblatt2018asymmetricFences},
+	which might improve the performance of hazard pointers beyond
+	what is shown in the figure.
 
 	As always, your mileage may vary.
 	Given the difference in performance, it is clear that hazard
-	pointers give you the most ideal performance either for
+	pointers give you the best performance either for
 	very large data structures (where the memory-barrier overhead
 	will at least partially overlap cache-miss penalties) and
 	for data structures such as hash tables where a lookup
 	operation needs a minimal number of hazard pointers.
-} \QuickQuizEnd
+}\QuickQuizEndE
+}
 
 The next section attempts to improve on hazard pointers by using
 sequence locks, which avoid both read-side writes and per-object memory

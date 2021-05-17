@@ -17,39 +17,44 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2009 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2009-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 
 #include "../api.h"
 
+//\begin{snippet}[labelbase=ln:count:count_tstat:whole,keepcomment=yes,commandchars=\\\@\$]
 unsigned long __thread counter = 0;
 unsigned long *counterp[NR_THREADS] = { NULL };
 int finalthreadcount = 0;
 DEFINE_SPINLOCK(final_mutex);
 
-void inc_count(void)
+static __inline__ void inc_count(void)
 {
-	counter++;
+	WRITE_ONCE(counter, counter + 1);
 }
 
-unsigned long read_count(void)  /* known failure with counttorture! */
+static __inline__ unsigned long read_count(void)
+                  /* need to tweak counttorture! */
 {
 	int t;
 	unsigned long sum = 0;
 
 	for_each_thread(t)
-		if (counterp[t] != NULL)
-			sum += *counterp[t];
+		if (READ_ONCE(counterp[t]) != NULL)
+			sum += READ_ONCE(*counterp[t]);
 	return sum;
 }
 
+#ifndef FCV_SNIPPET
 void count_init(void)
 {
 }
-
+#endif /* FCV_SNIPPET */
+				//\fcvexclude
 void count_register_thread(unsigned long *p)
 {
-	counterp[smp_thread_id()] = &counter;
+	WRITE_ONCE(counterp[smp_thread_id()], &counter);
 }
 
 void count_unregister_thread(int nthreadsexpected)
@@ -57,13 +62,15 @@ void count_unregister_thread(int nthreadsexpected)
 	spin_lock(&final_mutex);
 	finalthreadcount++;
 	spin_unlock(&final_mutex);
-	while (finalthreadcount < nthreadsexpected)
+	while (READ_ONCE(finalthreadcount) < nthreadsexpected)
 		poll(NULL, 0, 1);
 }
+//\end{snippet}
 
 void count_cleanup(void)
 {
 }
 
 #define NEED_REGISTER_THREAD
+#define KEEP_GCC_THREAD_LOCAL
 #include "counttorture.h"

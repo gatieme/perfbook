@@ -15,7 +15,8 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * Copyright (c) 2008 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2008-2019 Paul E. McKenney, IBM Corporation.
+ * Copyright (c) 2019 Paul E. McKenney, Facebook.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +35,22 @@ double dgettimeofday(void)
 	}
 
 	return (tv.tv_sec + ((double)tv.tv_usec) / 1000000.);
+}
+
+/*
+ * Spin waiting for the specified number of microseconds.
+ */
+void wait_microseconds(double usecs)
+{
+	double starttime;
+	double stoptime;
+
+	if (usecs == 0)
+		return;
+	starttime = dgettimeofday();
+	stoptime = starttime + usecs / 1000000.;
+	do {
+	} while (dgettimeofday() < stoptime);
 }
 
 #ifdef TEST

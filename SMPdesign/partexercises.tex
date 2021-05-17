@@ -1,78 +1,93 @@
 % SMPdesign/partexercises.tex
+% mainfile: ../perfbook.tex
+% SPDX-License-Identifier: CC-BY-SA-3.0
 
 \section{Partitioning Exercises}
 \label{sec:SMPdesign:Partitioning Exercises}
+%
+\epigraph{Whenever a theory appears to you as the only possible one,
+	  take this as a sign that you have neither understood the theory
+	  nor the problem which it was intended to solve.}
+	  {\emph{Karl Popper}}
 
-This section uses a pair of exercises (the classic Dining Philosophers
-problem and a double-ended queue) to demonstrate the value of partitioning.
+Although partitioning is more widely understood than it was in the early
+2000s, its value is still underappreciated.
+\Cref{sec:SMPdesign:Dining Philosophers Problem}
+therefore takes more highly parallel look at the classic Dining
+Philosophers problem and
+\cref{sec:SMPdesign:Double-Ended Queue}
+revisits the double-ended queue.
 
 \subsection{Dining Philosophers Problem}
 \label{sec:SMPdesign:Dining Philosophers Problem}
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \includegraphics[scale=.7]{SMPdesign/DiningPhilosopher5}
 \caption{Dining Philosophers Problem}
 \ContributedBy{Figure}{fig:SMPdesign:Dining Philosophers Problem}{Kornilios Kourtis}
 \end{figure}
 
-Figure~\ref{fig:SMPdesign:Dining Philosophers Problem} shows a diagram
-of the classic Dining Philosophers problem~\cite{Dijkstra1971HOoSP}.
+\Cref{fig:SMPdesign:Dining Philosophers Problem} shows a diagram
+of the classic \IX{Dining Philosophers problem}~\cite{Dijkstra1971HOoSP}.
 This problem features five philosophers who do nothing but think and
 eat a ``very difficult kind of spaghetti'' which requires two forks
-to eat.
+to eat.\footnote{
+	But feel free to instead think in terms of chopsticks.}
 A given philosopher is permitted to use only the forks to his or her
-immediate right and left, and once a philosopher picks up a fork,
-he or she will not put it down until sated.\footnote{
-	Readers who have difficulty imagining a food that requires
-	two forks are invited to instead think in terms of chopsticks.}
+immediate right and left, but will not put a given fork down until sated.
 
-\begin{figure*}[tb]
+\begin{figure*}
 \centering
+\IfTwoColumn{
 \resizebox{5in}{!}{\includegraphics{cartoons/Dining-philosophers}}
+}{
+\resizebox{\onecolumntextwidth}{!}{\includegraphics{cartoons/Dining-philosophers}}
+}
 \caption{Partial Starvation Is Also Bad}
 \ContributedBy{Figure}{fig:cpu:Partial Starvation Is Also Bad}{Melissa Broussard}
 \end{figure*}
 
 The object is to construct an algorithm that, quite literally,
-prevents starvation.
+prevents \IX{starvation}.
 One starvation scenario would be if all of the philosophers picked up
 their leftmost forks simultaneously.
-Because none of them would put down their fork until after they ate,
-and because none of them may pick up their second fork until at least
-one has finished eating, they all starve.
+Because none of them will put down their fork until after they finished
+eating, and because none of them may pick up their second fork until at
+least one of them has finished eating, they all starve.
 Please note that it is not sufficient to allow at least one philosopher
 to eat.
-As Figure~\ref{fig:cpu:Partial Starvation Is Also Bad}
+As \cref{fig:cpu:Partial Starvation Is Also Bad}
 shows, starvation of even a few of the philosophers is to be avoided.
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \includegraphics[scale=.7]{SMPdesign/DiningPhilosopher5TB}
 \caption{Dining Philosophers Problem, Textbook Solution}
-\ContributedBy{Figure}{fig:SMPdesign:Dining Philosophers Problem, Textbook Solution}{Kornilios Kourtis}
+\ContributedBy{Figure}{fig:SMPdesign:Dining Philosophers Problem; Textbook Solution}{Kornilios Kourtis}
 \end{figure}
 
-Dijkstra's solution used a global semaphore, which works fine assuming
+\pplsur{Edsger W.}{Dijkstra}'s solution used a global semaphore,
+which works fine assuming
 negligible communications delays, an assumption that became invalid
 in the late 1980s or early 1990s.\footnote{
 	It is all too easy to denigrate Dijkstra from the viewpoint
-	of the year 2012, more than 40 years after the fact.
+	of the year 2021, more than 50 years after the fact.
 	If you still feel the need to denigrate Dijkstra, my advice
-	is to publish something, wait 40 years, and then see
-	how \emph{your} words stood the test of time.}
-Therefore, recent solutions number the forks as shown in
-Figure~\ref{fig:SMPdesign:Dining Philosophers Problem, Textbook Solution}.
+	is to publish something, wait 50 years, and then see
+	how well \emph{your} ideas stood the test of time.}
+More recent solutions number the forks as shown in
+\cref{fig:SMPdesign:Dining Philosophers Problem; Textbook Solution}.
 Each philosopher picks up the lowest-numbered fork next to his or her
-plate, then picks up the highest-numbered fork.
+plate, then picks up the other fork.
 The philosopher sitting in the uppermost position in the diagram thus
 picks up the leftmost fork first, then the rightmost fork, while the
 rest of the philosophers instead pick up their rightmost fork first.
 Because two of the philosophers will attempt to pick up fork~1 first,
 and because only one of those two philosophers will succeed,
 there will be five forks available to four philosophers.
-At least one of these four will be guaranteed to have two forks,
-and thus be able to proceed eating.
+At least one of these four will have two forks, and will thus be able
+to eat.
 
 This general technique of numbering resources and acquiring them in
 numerical order is heavily used as a deadlock-prevention technique.
@@ -93,23 +108,17 @@ In short, this algorithm can result in only one philosopher eating at
 a given time, even when all five philosophers are hungry,
 despite the fact that there are more than enough forks for two
 philosophers to eat concurrently.
+It should be possible to do better than this!
 
-Please think about ways of partitioning the Dining Philosophers Problem
-before reading further.
-
-\pagebreak
-(Intentional blank page)
-\cleardoublepage
-
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \includegraphics[scale=.7]{SMPdesign/DiningPhilosopher4part-b}
 \caption{Dining Philosophers Problem, Partitioned}
-\ContributedBy{Figure}{fig:SMPdesign:Dining Philosophers Problem, Partitioned}{Kornilios Kourtis}
+\ContributedBy{Figure}{fig:SMPdesign:Dining Philosophers Problem; Partitioned}{Kornilios Kourtis}
 \end{figure}
 
 One approach is shown in
-Figure~\ref{fig:SMPdesign:Dining Philosophers Problem, Partitioned},
+\cref{fig:SMPdesign:Dining Philosophers Problem; Partitioned},
 which includes four philosophers rather than five to better illustrate the
 partition technique.
 Here the upper and rightmost philosophers share a pair of forks,
@@ -120,30 +129,29 @@ In addition, as shown in the figure, the forks can now be bundled
 so that the pair are picked up and put down simultaneously, simplifying
 the acquisition and release algorithms.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Is there a better solution to the Dining
 	Philosophers Problem?
-\QuickQuizAnswer{
-%
-\begin{figure}[tb]
-\centering
-\includegraphics[scale=.7]{SMPdesign/DiningPhilosopher5PEM}
-\caption{Dining Philosophers Problem, Fully Partitioned}
-\QContributedBy{Figure}{fig:SMPdesign:Dining Philosophers Problem, Fully Partitioned}{Kornilios Kourtis}
-\end{figure}
-%
+}\QuickQuizAnswer{
 	One such improved solution is shown in
-	Figure~\ref{fig:SMPdesign:Dining Philosophers Problem, Fully Partitioned},
+	\cref{fig:SMPdesign:Dining Philosophers Problem; Fully Partitioned},
 	where the philosophers are simply provided with an additional
 	five forks.
 	All five philosophers may now eat simultaneously, and there
 	is never any need for philosophers to wait on one another.
 	In addition, this approach offers greatly improved disease control.
 
+\begin{figure}
+\centering
+\includegraphics[scale=.7]{SMPdesign/DiningPhilosopher5PEM}
+\caption{Dining Philosophers Problem, Fully Partitioned}
+\QContributedBy{Figure}{fig:SMPdesign:Dining Philosophers Problem; Fully Partitioned}{Kornilios Kourtis}
+\end{figure}
+
 	This solution might seem like cheating to some, but such
 	``cheating'' is key to finding good solutions to many
 	concurrency problems.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 This is an example of ``horizontal parallelism''~\cite{Inman85}
 or ``data parallelism'',
@@ -152,10 +160,10 @@ In a horizontally parallel data-processing system, a given item of data
 would be processed by only one of a replicated set of software
 components.
 
-\QuickQuiz{}
+\QuickQuiz{
 	And in just what sense can this ``horizontal parallelism'' be
 	said to be ``horizontal''?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Inman was working with protocol stacks, which are normally
 	depicted vertically, with the application on top and the
 	hardware interconnect on the bottom.
@@ -166,7 +174,7 @@ components.
 	packet in parallel.
 
 	``Vertical parallelism'' is also called ``pipelining''.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 \subsection{Double-Ended Queue}
 \label{sec:SMPdesign:Double-Ended Queue}
@@ -183,7 +191,7 @@ general approaches in the following sections.
 \subsubsection{Left- and Right-Hand Locks}
 \label{sec:SMPdesign:Left- and Right-Hand Locks}
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{SMPdesign/lockdeq}}
 \caption{Double-Ended Queue With Left- and Right-Hand Locks}
@@ -194,7 +202,7 @@ One seemingly straightforward approach would be to use a doubly
 linked list with a left-hand lock
 for left-hand-end enqueue and dequeue operations along with a right-hand
 lock for right-hand-end operations, as shown in
-Figure~\ref{fig:SMPdesign:Double-Ended Queue With Left- and Right-Hand Locks}.
+\cref{fig:SMPdesign:Double-Ended Queue With Left- and Right-Hand Locks}.
 However, the problem with this approach is that the two locks'
 domains must overlap when there are fewer than four elements on the
 list.
@@ -215,7 +223,7 @@ It is far better to consider other designs.
 \subsubsection{Compound Double-Ended Queue}
 \label{sec:SMPdesign:Compound Double-Ended Queue}
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{SMPdesign/lockdeqpair}}
 \caption{Compound Double-Ended Queue}
@@ -223,13 +231,13 @@ It is far better to consider other designs.
 \end{figure}
 
 One way of forcing non-overlapping lock domains is shown in
-Figure~\ref{fig:SMPdesign:Compound Double-Ended Queue}.
+\cref{fig:SMPdesign:Compound Double-Ended Queue}.
 Two separate double-ended queues are run in tandem, each protected by
 its own lock.
 This means that elements must occasionally be shuttled from one of
 the double-ended queues to the other, in which case both locks must
 be held.
-A simple lock hierarchy may be used to avoid deadlock, for example,
+A simple lock hierarchy may be used to avoid \IX{deadlock}, for example,
 always acquiring the left-hand lock before acquiring the right-hand lock.
 This will be much simpler than applying two locks to the same
 double-ended queue, as we can unconditionally left-enqueue elements
@@ -247,14 +255,14 @@ which case it is necessary to:
 \item	Release both locks.
 \end{enumerate}
 
-\QuickQuiz{}
+\QuickQuiz{
 	In this compound double-ended queue implementation, what should
 	be done if the queue has become non-empty while releasing
 	and reacquiring the lock?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	In this case, simply dequeue an item from the non-empty
 	queue, release both locks, and return.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 The resulting code (\path{locktdeq.c}) is quite straightforward.
 The rebalancing operation might well shuttle a given element back
@@ -281,7 +289,7 @@ A key point is that it is not necessary to actually represent a given
 element's number, as this number will be implied by its position in
 the queue.
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{SMPdesign/lockdeqhash}}
 \caption{Hashed Double-Ended Queue}
@@ -290,13 +298,13 @@ the queue.
 
 Given this approach, we assign one lock to guard the left-hand index,
 one to guard the right-hand index, and one lock for each hash chain.
-Figure~\ref{fig:SMPdesign:Hashed Double-Ended Queue} shows the resulting
+\Cref{fig:SMPdesign:Hashed Double-Ended Queue} shows the resulting
 data structure given four hash chains.
 Note that the lock domains do not overlap, and that deadlock is avoided
 by acquiring the index locks before the chain locks, and by never
-acquiring more than one lock of each type (index or chain) at a time.
+acquiring more than one lock of a given type (index or chain) at a time.
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{3in}{!}{\includegraphics{SMPdesign/lockdeqhash1R}}
 \caption{Hashed Double-Ended Queue After Insertions}
@@ -306,132 +314,68 @@ acquiring more than one lock of each type (index or chain) at a time.
 Each hash chain is itself a double-ended queue, and in this example,
 each holds every fourth element.
 The uppermost portion of
-Figure~\ref{fig:SMPdesign:Hashed Double-Ended Queue After Insertions}
+\cref{fig:SMPdesign:Hashed Double-Ended Queue After Insertions}
 shows the state after a single element (``R$_1$'') has been
 right-enqueued, with the right-hand index having been incremented to
 reference hash chain~2.
 The middle portion of this same figure shows the state after
 three more elements have been right-enqueued.
 As you can see, the indexes are back to their initial states
-(see Figure~\ref{fig:SMPdesign:Hashed Double-Ended Queue}), however,
+(see \cref{fig:SMPdesign:Hashed Double-Ended Queue}), however,
 each hash chain is now non-empty.
 The lower portion of this figure shows the state after three additional
 elements have been left-enqueued and an additional element has been
 right-enqueued.
 
 From the last state shown in
-Figure~\ref{fig:SMPdesign:Hashed Double-Ended Queue After Insertions},
+\cref{fig:SMPdesign:Hashed Double-Ended Queue After Insertions},
 a left-dequeue operation would return element ``L$_{-2}$'' and leave
 the left-hand index referencing hash chain~2, which would then
 contain only a single element (``R$_2$'').
 In this state, a left-enqueue running concurrently with a right-enqueue
-would result in lock contention, but the probability of such contention
+would result in \IX{lock contention}, but the probability of such contention
 can be reduced to arbitrarily low levels by using a larger hash table.
 
-\begin{figure}[tb]
+\begin{figure}
 \centering
 \resizebox{1.5in}{!}{\includegraphics{SMPdesign/lockdeqhashlots}}
 \caption{Hashed Double-Ended Queue With 16 Elements}
 \label{fig:SMPdesign:Hashed Double-Ended Queue With 16 Elements}
 \end{figure}
 
-Figure~\ref{fig:SMPdesign:Hashed Double-Ended Queue With 16 Elements}
+\Cref{fig:SMPdesign:Hashed Double-Ended Queue With 16 Elements}
 shows how 16 elements would be organized in a four-hash-bucket
 parallel double-ended queue.
 Each underlying single-lock double-ended queue holds a one-quarter
 slice of the full parallel double-ended queue.
 
-\begin{figure}[tbp]
-{ \scriptsize
-\begin{verbbox}
-  1 struct pdeq {
-  2   spinlock_t llock;
-  3   int lidx;
-  4   spinlock_t rlock;
-  5   int ridx;
-  6   struct deq bkt[DEQ_N_BKTS];
-  7 };
-\end{verbbox}
-}
-\centering
-\theverbbox
+\begin{listing}
+\input{CodeSamples/SMPdesign/lockhdeq@struct_pdeq.fcv}
 \caption{Lock-Based Parallel Double-Ended Queue Data Structure}
-\label{fig:SMPdesign:Lock-Based Parallel Double-Ended Queue Data Structure}
-\end{figure}
+\label{lst:SMPdesign:Lock-Based Parallel Double-Ended Queue Data Structure}
+\end{listing}
 
-Figure~\ref{fig:SMPdesign:Lock-Based Parallel Double-Ended Queue Data Structure}
+\Cref{lst:SMPdesign:Lock-Based Parallel Double-Ended Queue Data Structure}
 shows the corresponding C-language data structure, assuming an
 existing \co{struct deq} that provides a trivially locked
 double-ended-queue implementation.
-This data structure contains the left-hand lock on line~2,
-the left-hand index on line~3, the right-hand lock on line~4
+\begin{fcvref}[ln:SMPdesign:lockhdeq:struct_pdeq]
+This data structure contains the left-hand lock on \clnref{llock},
+the left-hand index on \clnref{lidx}, the right-hand lock on \clnref{rlock}
 (which is cache-aligned in the actual implementation),
-the right-hand index on line~5, and, finally, the hashed array
-of simple lock-based double-ended queues on line~6.
+the right-hand index on \clnref{ridx}, and, finally, the hashed array
+of simple lock-based double-ended queues on \clnref{bkt}.
 A high-performance implementation would of course use padding or special
 alignment directives to avoid false sharing.
+\end{fcvref}
 
-\begin{figure*}[bp]
-{ \scriptsize
-\begin{verbbox}
-  1 struct cds_list_head *pdeq_pop_l(struct pdeq *d)
-  2 {
-  3   struct cds_list_head *e;
-  4   int i;
-  5 
-  6   spin_lock(&d->llock);
-  7   i = moveright(d->lidx);
-  8   e = deq_pop_l(&d->bkt[i]);
-  9   if (e != NULL)
- 10     d->lidx = i;
- 11   spin_unlock(&d->llock);
- 12   return e;
- 13 }
- 14 
- 15 struct cds_list_head *pdeq_pop_r(struct pdeq *d)
- 16 {
- 17   struct cds_list_head *e;
- 18   int i;
- 19 
- 20   spin_lock(&d->rlock);
- 21   i = moveleft(d->ridx);
- 22   e = deq_pop_r(&d->bkt[i]);
- 23   if (e != NULL)
- 24     d->ridx = i;
- 25   spin_unlock(&d->rlock);
- 26   return e;
- 27 }
- 28 
- 29 void pdeq_push_l(struct cds_list_head *e, struct pdeq *d)
- 30 {
- 31   int i;
- 32 
- 33   spin_lock(&d->llock);
- 34   i = d->lidx;
- 35   deq_push_l(e, &d->bkt[i]);
- 36   d->lidx = moveleft(d->lidx);
- 37   spin_unlock(&d->llock);
- 38 }
- 39 
- 40 void pdeq_push_r(struct cds_list_head *e, struct pdeq *d)
- 41 {
- 42   int i;
- 43 
- 44   spin_lock(&d->rlock);
- 45   i = d->ridx;
- 46   deq_push_r(e, &d->bkt[i]);
- 47   d->ridx = moveright(d->ridx);
- 48   spin_unlock(&d->rlock);
- 49 }
-\end{verbbox}
-}
-\centering
-\theverbbox
+\begin{listing}
+\input{CodeSamples/SMPdesign/lockhdeq@pop_push.fcv}
 \caption{Lock-Based Parallel Double-Ended Queue Implementation}
-\label{fig:SMPdesign:Lock-Based Parallel Double-Ended Queue Implementation}
-\end{figure*}
+\label{lst:SMPdesign:Lock-Based Parallel Double-Ended Queue Implementation}
+\end{listing}
 
-Figure~\ref{fig:SMPdesign:Lock-Based Parallel Double-Ended Queue Implementation}
+\Cref{lst:SMPdesign:Lock-Based Parallel Double-Ended Queue Implementation}
 (\path{lockhdeq.c})
 shows the implementation of the enqueue and dequeue functions.\footnote{
 	One could easily create a polymorphic implementation in any
@@ -440,31 +384,43 @@ shows the implementation of the enqueue and dequeue functions.\footnote{
 Discussion will focus on the left-hand operations, as the right-hand
 operations are trivially derived from them.
 
-Lines~1-13 show \co{pdeq_pop_l()}, which left\-/dequeues and returns
+\begin{fcvref}[ln:SMPdesign:lockhdeq:pop_push:popl]
+\Clnrefrange{b}{e} show \co{pdeq_pop_l()},
+which left\-/dequeues and returns
 an element if possible, returning \co{NULL} otherwise.
-Line~6 acquires the left-hand spinlock, and line~7 computes the
+\Clnref{acq} acquires the left-hand spinlock,
+and \clnref{idx} computes the
 index to be dequeued from.
-Line~8 dequeues the element, and, if line~9 finds the result to be
-non-\co{NULL}, line~10 records the new left-hand index.
-Either way, line~11 releases the lock, and, finally, line~12 returns
+\Clnref{deque} dequeues the element, and,
+if \clnref{check} finds the result to be
+non-\co{NULL}, \clnref{record} records the new left-hand index.
+Either way, \clnref{rel} releases the lock, and,
+finally, \clnref{return} returns
 the element if there was one, or \co{NULL} otherwise.
+\end{fcvref}
 
-Lines~29-38 shows \co{pdeq_push_l()}, which left-enqueues the specified
+\begin{fcvref}[ln:SMPdesign:lockhdeq:pop_push:pushl]
+\Clnrefrange{b}{e} show \co{pdeq_push_l()},
+which left-enqueues the specified
 element.
-Line~33 acquires the left-hand lock, and line~34 picks up the left-hand
+\Clnref{acq} acquires the left-hand lock,
+and \clnref{idx} picks up the left-hand
 index.
-Line~35 left-enqueues the specified element onto the double-ended queue
+\Clnref{enque} left-enqueues the specified element
+onto the double-ended queue
 indexed by the left-hand index.
-Line~36 then updates the left-hand index and line~37 releases the lock.
+\Clnref{update} then updates the left-hand index
+and \clnref{rel} releases the lock.
+\end{fcvref}
 
 As noted earlier, the right-hand operations are completely analogous
 to their left-handed counterparts, so their analysis is left as an
 exercise for the reader.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Is the hashed double-ended queue a good solution?
 	Why or why not?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	The best way to answer this is to run \path{lockhdeq.c} on
 	a number of different multiprocessor systems, and you are
 	encouraged to do so in the strongest possible terms.
@@ -479,9 +435,9 @@ exercise for the reader.
 		The studies by Dalessandro
 		et al.~\cite{LukeDalessandro:2011:ASPLOS:HybridNOrecSTM:deque}
 		and Dice et al.~\cite{DavidDice:2010:SCA:HTM:deque} are
-		good starting points.}
+		excellent starting points.}
 	Do not forget to compare to a sequential implementation!
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 \subsubsection{Compound Double-Ended Queue Revisited}
 \label{sec:SMPdesign:Compound Double-Ended Queue Revisited}
@@ -490,11 +446,11 @@ This section revisits the compound double-ended queue, using a trivial
 rebalancing scheme that moves all the elements from the non-empty
 queue to the now-empty queue.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Move \emph{all} the elements to the queue that became empty?
 	In what possible universe is this brain-dead solution in any
 	way optimal???
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	It is optimal in the case where data flow switches direction only
 	rarely.
 	It would of course be an extremely poor choice if the double-ended
@@ -503,165 +459,160 @@ queue to the now-empty queue.
 	universe emptying from both ends concurrently would be a reasonable
 	thing to do.
 	Work-stealing queues are one possible answer to this question.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 In contrast to the hashed implementation presented in
 the previous section, the compound implementation will build on
 a sequential implementation of a double-ended queue that uses
 neither locks nor atomic operations.
 
-\begin{figure*}[bp]
-{ \scriptsize
-\begin{verbbox}
-  1 struct cds_list_head *pdeq_pop_l(struct pdeq *d)
-  2 {
-  3   struct cds_list_head *e;
-  4 
-  5   spin_lock(&d->llock);
-  6   e = deq_pop_l(&d->ldeq);
-  7   if (e == NULL) {
-  8     spin_lock(&d->rlock);
-  9     e = deq_pop_l(&d->rdeq);
- 10     cds_list_splice(&d->rdeq.chain, &d->ldeq.chain);
- 11     CDS_INIT_LIST_HEAD(&d->rdeq.chain);
- 12     spin_unlock(&d->rlock);
- 13   }
- 14   spin_unlock(&d->llock);
- 15   return e;
- 16 }
- 17 
- 18 struct cds_list_head *pdeq_pop_r(struct pdeq *d)
- 19 {
- 20   struct cds_list_head *e;
- 21 
- 22   spin_lock(&d->rlock);
- 23   e = deq_pop_r(&d->rdeq);
- 24   if (e == NULL) {
- 25     spin_unlock(&d->rlock);
- 26     spin_lock(&d->llock);
- 27     spin_lock(&d->rlock);
- 28     e = deq_pop_r(&d->rdeq);
- 29     if (e == NULL) {
- 30       e = deq_pop_r(&d->ldeq);
- 31       cds_list_splice(&d->ldeq.chain, &d->rdeq.chain);
- 32       CDS_INIT_LIST_HEAD(&d->ldeq.chain);
- 33     }
- 34     spin_unlock(&d->llock);
- 35   }
- 36   spin_unlock(&d->rlock);
- 37   return e;
- 38 }
- 39 
- 40 void pdeq_push_l(struct cds_list_head *e, struct pdeq *d)
- 41 {
- 42   int i;
- 43 
- 44   spin_lock(&d->llock);
- 45   deq_push_l(e, &d->ldeq);
- 46   spin_unlock(&d->llock);
- 47 }
- 48 
- 49 void pdeq_push_r(struct cds_list_head *e, struct pdeq *d)
- 50 {
- 51   int i;
- 52 
- 53   spin_lock(&d->rlock);
- 54   deq_push_r(e, &d->rdeq);
- 55   spin_unlock(&d->rlock);
- 56 }
-\end{verbbox}
-}
-\centering
-\theverbbox
+\begin{listing}
+\ebresizeverb{.97}{\input{CodeSamples/SMPdesign/locktdeq@pop_push.fcv}}
 \caption{Compound Parallel Double-Ended Queue Implementation}
-\label{fig:SMPdesign:Compound Parallel Double-Ended Queue Implementation}
-\end{figure*}
+\label{lst:SMPdesign:Compound Parallel Double-Ended Queue Implementation}
+\end{listing}
 
-Figure~\ref{fig:SMPdesign:Compound Parallel Double-Ended Queue Implementation}
+\Cref{lst:SMPdesign:Compound Parallel Double-Ended Queue Implementation}
 shows the implementation.
 Unlike the hashed implementation, this compound implementation is
 asymmetric, so that we must consider the \co{pdeq_pop_l()}
 and \co{pdeq_pop_r()} implementations separately.
 
-\QuickQuiz{}
+\QuickQuiz{
 	Why can't the compound parallel double-ended queue
 	implementation be symmetric?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	The need to avoid deadlock by imposing a lock hierarchy
 	forces the asymmetry, just as it does in the fork-numbering
 	solution to the Dining Philosophers Problem
-	(see Section~\ref{sec:SMPdesign:Dining Philosophers Problem}).
-} \QuickQuizEnd
+	(see \cref{sec:SMPdesign:Dining Philosophers Problem}).
+}\QuickQuizEnd
 
-The \co{pdeq_pop_l()} implementation is shown on lines~1-16
+\begin{fcvref}[ln:SMPdesign:locktdeq:pop_push:popl]
+The \co{pdeq_pop_l()} implementation is shown on
+\clnrefrange{b}{e}
 of the figure.
-Line~5 acquires the left-hand lock, which line~14 releases.
-Line~6 attempts to left-dequeue an element from the left-hand underlying
-double-ended queue, and, if successful, skips lines~8-13 to simply
+\Clnref{acq:l} acquires the left-hand lock,
+which \clnref{rel:l} releases.
+\Clnref{deq:ll} attempts to left-dequeue an element
+from the left-hand underlying
+double-ended queue, and, if successful,
+skips \clnrefrange{acq:r}{skip} to simply
 return this element.
-Otherwise, line~8 acquires the right-hand lock, line~9
+Otherwise, \clnref{acq:r} acquires the right-hand lock, \clnref{deq:lr}
 left-dequeues an element from the right-hand queue,
-and line~10 moves any remaining elements on the right-hand
-queue to the left-hand queue, line~11 initializes the right-hand queue,
-and line~12 releases the right-hand lock.
-The element, if any, that was dequeued on line~10 will be returned.
+and \clnref{move} moves any remaining elements on the right-hand
+queue to the left-hand queue, \clnref{init:r} initializes
+the right-hand queue,
+and \clnref{rel:r} releases the right-hand lock.
+The element, if any, that was dequeued on \clnref{deq:lr} will be returned.
+\end{fcvref}
 
-The \co{pdeq_pop_r()} implementation is shown on lines~18-38
+\begin{fcvref}[ln:SMPdesign:locktdeq:pop_push:popr]
+The \co{pdeq_pop_r()} implementation is shown on \clnrefrange{b}{e}
 of the figure.
-As before, line~22 acquires the right-hand lock (and line~36
-releases it), and line~23 attempts to right-dequeue an element
-from the right-hand queue, and, if successful, skips lines~24-35
+As before, \clnref{acq:r1} acquires the right-hand lock
+(and \clnref{rel:r2}
+releases it), and \clnref{deq:rr1} attempts to right-dequeue an element
+from the right-hand queue, and, if successful,
+skips \clnrefrange{rel:r1}{skip2}
 to simply return this element.
-However, if line~24 determines that there was no element to dequeue,
-line~25 releases the right-hand lock and lines~26-27 acquire both
+However, if \clnref{check1} determines that there was no element to dequeue,
+\clnref{rel:r1} releases the right-hand lock and
+\clnrefrange{acq:l}{acq:r2} acquire both
 locks in the proper order.
-Line~28 then attempts to right-dequeue an element from the right-hand
-list again, and if line~29 determines that this second attempt has
-failed, line~30 right-dequeues an element from the left-hand queue
-(if there is one available), line~31 moves any remaining elements
-from the left-hand queue to the right-hand queue, and line~32
+\Clnref{deq:rr2} then attempts to right-dequeue an element
+from the right-hand
+list again, and if \clnref{check2} determines that this second attempt has
+failed, \clnref{deq:rl} right-dequeues an element from the left-hand queue
+(if there is one available), \clnref{move} moves any remaining elements
+from the left-hand queue to the right-hand queue, and \clnref{init:l}
 initializes the left-hand queue.
-Either way, line~34 releases the left-hand lock.
+Either way, \clnref{rel:l} releases the left-hand lock.
+\end{fcvref}
 
-\QuickQuiz{}
+\QuickQuizSeries{%
+\QuickQuizB{
 	Why is it necessary to retry the right-dequeue operation
-	on line~28 of
-	Figure~\ref{fig:SMPdesign:Compound Parallel Double-Ended Queue Implementation}?
-\QuickQuizAnswer{
+	on \clnrefr{ln:SMPdesign:locktdeq:pop_push:popr:deq:rr2} of
+	\cref{lst:SMPdesign:Compound Parallel Double-Ended Queue Implementation}?
+}\QuickQuizAnswerB{
+	\begin{fcvref}[ln:SMPdesign:locktdeq:pop_push:popr]
 	This retry is necessary because some other thread might have
 	enqueued an element between the time that this thread dropped
-	\co{d->rlock} on line~25 and the time that it reacquired this
-	same lock on line~27.
-} \QuickQuizEnd
-
-\QuickQuiz{}
+	\co{d->rlock} on \clnref{rel:r1} and the time that it reacquired this
+	same lock on \clnref{acq:r2}.
+	\end{fcvref}
+}\QuickQuizEndB
+%
+\QuickQuizE{
 	Surely the left-hand lock must \emph{sometimes} be available!!!
-	So why is it necessary that line~25 of
-	Figure~\ref{fig:SMPdesign:Compound Parallel Double-Ended Queue Implementation}
+	So why is it necessary that
+	\clnrefr{ln:SMPdesign:locktdeq:pop_push:popr:rel:r1} of
+	\cref{lst:SMPdesign:Compound Parallel Double-Ended Queue Implementation}
 	unconditionally release the right-hand lock?
-\QuickQuizAnswer{
+}\QuickQuizAnswerE{
 	It would be possible to use \co{spin_trylock()} to attempt
 	to acquire the left-hand lock when it was available.
 	However, the failure case would still need to drop the
 	right-hand lock and then re-acquire the two locks in order.
 	Making this transformation (and determining whether or not
 	it is worthwhile) is left as an exercise for the reader.
-} \QuickQuizEnd
+}\QuickQuizEndE
+}
 
-The \co{pdeq_push_l()} implementation is shown on lines~40-47 of
-Figure~\ref{fig:SMPdesign:Compound Parallel Double-Ended Queue Implementation}.
-Line~44 acquires the left-hand spinlock, line~45 left-enqueues the
-element onto the left-hand queue, and finally line~46 releases
+\begin{fcvref}[ln:SMPdesign:locktdeq:pop_push:pushl]
+The \co{pdeq_push_l()} implementation is shown on
+\clnrefrange{b}{e} of
+\cref{lst:SMPdesign:Compound Parallel Double-Ended Queue Implementation}.
+\Clnref{acq:l} acquires the left-hand spinlock,
+\clnref{que:l} left-enqueues the
+element onto the left-hand queue, and finally \clnref{rel:l} releases
 the lock.
-The \co{pdeq_enqueue_r()} implementation (shown on lines~49-56)
+\end{fcvref}
+\begin{fcvref}[ln:SMPdesign:locktdeq:pop_push:pushr]
+The \co{pdeq_push_r()} implementation (shown on \clnrefrange{b}{e})
 is quite similar.
+\end{fcvref}
+
+\QuickQuiz{
+	But in the case where data is flowing in only one direction,
+	the algorithm shown in
+	\cref{lst:SMPdesign:Compound Parallel Double-Ended Queue Implementation}
+	will have both ends attempting to acquire the same lock
+	whenever the consuming end empties its underlying
+	double-ended queue.
+	Doesn't that mean that sometimes this algorithm fails to
+	provide concurrent access to both ends of the queue even
+	when the queue contains an arbitrarily large number of elements?
+}\QuickQuizAnswer{
+	Indeed it does!
+
+	But the same is true of other algorithms claiming this property.
+	For example, in solutions using software transactional memory
+	mechanisms based on hashed arrays of locks,
+	the leftmost and rightmost elements' addresses will sometimes
+	happen to hash to the same lock.
+	These hash collisions will also prevent concurrent access.
+	For another example, solutions using hardware transactional
+	memory mechanisms with software
+	fallbacks~\cite{Yoo:2013:PEI:2503210.2503232,RickMerrit2011PowerTM,ChristianJacobi2012MainframeTM}
+	often use locking within those software fallbacks, and thus
+	suffer (albeit hopefully rarely) from whatever concurrency
+	limitations that these locking solutions suffer from.
+
+	Therefore, as of 2021, all practical solutions to the
+	concurrent double-ended queue problem fail to provide full
+	concurrency in at least some circumstances, including the
+	compound double-ended queue.
+}\QuickQuizEnd
 
 \subsubsection{Double-Ended Queue Discussion}
 \label{sec:SMPdesign:Double-Ended Queue Discussion}
 
 The compound implementation is somewhat more complex than the
 hashed variant presented in
-Section~\ref{sec:SMPdesign:Hashed Double-Ended Queue},
+\cref{sec:SMPdesign:Hashed Double-Ended Queue},
 but is still reasonably simple.
 Of course, a more intelligent rebalancing scheme could be arbitrarily
 complex, but the simple scheme shown here has been shown to
@@ -672,8 +623,8 @@ assist~\cite{DavidDice:2010:SCA:HTM:deque}.
 Nevertheless, the best we can hope for from such a scheme
 is 2x scalability, as at most two threads can be holding the
 dequeue's locks concurrently.
-This limitation also applies to algorithms based on non-blocking
-synchronization, such as the compare-and-swap-based dequeue algorithm of
+This limitation also applies to algorithms based on \IXacrl{nbs},
+such as the compare-and-swap-based dequeue algorithm of
 Michael~\cite{DBLP:conf/europar/Michael03}.\footnote{
 	This paper is interesting in that it showed that special
 	double-compare-and-swap (DCAS) instructions are not needed
@@ -681,23 +632,23 @@ Michael~\cite{DBLP:conf/europar/Michael03}.\footnote{
 	Instead, the common compare-and-swap (e.g., x86 cmpxchg)
 	suffices.}
 
-\QuickQuiz{}
+\QuickQuiz{
 	Why are there not one but two solutions to the double-ended queue
 	problem?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	There are actually at least three.
 	The third, by Dominik Dingel, makes interesting use of
 	reader-writer locking, and may be found in \path{lockrwdeq.c}.
-} \QuickQuizEnd
+}\QuickQuizEnd
 
 In fact, as noted by Dice et al.~\cite{DavidDice:2010:SCA:HTM:deque},
 an unsynchronized single-threaded double-ended queue significantly
 outperforms any of the parallel implementations they studied.
 Therefore, the key point is that there can be significant overhead enqueuing to
 or dequeuing from a shared queue, regardless of implementation.
-This should come as no surprise given the material in
-Chapter~\ref{chp:Hardware and its Habits}, given the strict
-FIFO nature of these queues.
+This should come as no surprise in light of the material in
+\cref{chp:Hardware and its Habits}, given the strict
+first-in-first-out (FIFO) nature of these queues.
 
 Furthermore, these strict FIFO queues are strictly FIFO only with
 respect to
@@ -713,7 +664,7 @@ sections.
 These queues are not strictly FIFO with respect to (say) the times at which
 the individual operations started~\cite{AndreasHaas2012FIFOisnt}.
 This indicates that the strict FIFO property is not all that valuable
-in concurrent programs, and in fact, Kirsch et al.~present less-strict
+in concurrent programs, and in fact, Kirsch et al.\ present less-strict
 queues that provide improved performance and
 scalability~\cite{ChristophMKirsch2012FIFOisntTR}.\footnote{
 	Nir Shavit produced relaxed stacks for roughly the same
@@ -732,7 +683,7 @@ overall design.
 
 The optimal solution to the dining philosophers problem given in
 the answer to the Quick Quiz in
-Section~\ref{sec:SMPdesign:Dining Philosophers Problem}
+\cref{sec:SMPdesign:Dining Philosophers Problem}
 is an excellent example of ``horizontal parallelism'' or
 ``data parallelism''.
 The synchronization overhead in this case is nearly (or even exactly)
@@ -743,12 +694,13 @@ queue implementations are examples of ``vertical parallelism'' or
 The tighter coordination required for pipelining in turn requires
 larger units of work to obtain a given level of efficiency.
 
-\QuickQuiz{}
+\QuickQuizSeries{%
+\QuickQuizB{
 	The tandem double-ended queue runs about twice as fast as
 	the hashed double-ended queue, even when I increase the
 	size of the hash table to an insanely large number.
 	Why is that?
-\QuickQuizAnswer{
+}\QuickQuizAnswerB{
 	The hashed double-ended queue's locking design only permits
 	one thread at a time at each end, and further requires
 	two lock acquisitions for each operation.
@@ -758,15 +710,15 @@ larger units of work to obtain a given level of efficiency.
 	Therefore, the tandem double-ended queue should be expected to
 	outperform the hashed double-ended queue.
 
-	Can you created a double-ended queue that allows multiple
+	Can you create a double-ended queue that allows multiple
 	concurrent operations at each end?
 	If so, how?  If not, why not?
-} \QuickQuizEnd
-
-\QuickQuiz{}
+}\QuickQuizEndB
+%
+\QuickQuizE{
 	Is there a significantly better way of handling concurrency
 	for double-ended queues?
-\QuickQuizAnswer{
+}\QuickQuizAnswerE{
 	One approach is to transform the problem to be solved
 	so that multiple double-ended queues can be used in parallel,
 	allowing the simpler single-lock double-ended queue to be used,
@@ -794,18 +746,19 @@ larger units of work to obtain a given level of efficiency.
 	This batching approach decreases contention on the queue data
 	structures, which increases both performance and scalability,
 	as will be seen in
-	Section~\ref{sec:SMPdesign:Synchronization Granularity}.
+	\cref{sec:SMPdesign:Synchronization Granularity}.
 	After all, if you must incur high synchronization overheads,
 	be sure you are getting your money's worth.
 
 	Other researchers are working on other ways to take advantage
 	of limited ordering guarantees in
 	queues~\cite{ChristophMKirsch2012FIFOisntTR}.
-} \QuickQuizEnd
+}\QuickQuizEndE
+}
 
 These two examples show just how powerful partitioning can be in
 devising parallel algorithms.
-Section~\ref{sec:SMPdesign:Locking Granularity and Performance}
+\Cref{sec:SMPdesign:Locking Granularity and Performance}
 looks briefly at a third example, matrix multiply.
 However, all three of these examples beg for more and better design
 criteria for parallel programs, a topic taken up in the next section.

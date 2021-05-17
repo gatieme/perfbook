@@ -1,8 +1,12 @@
 % SMPdesign/criteria.tex
+% mainfile: ../perfbook.tex
 % SPDX-License-Identifier: CC-BY-SA-3.0
 
 \section{Design Criteria}
 \label{sec:SMPdesign:Design Criteria}
+%
+\epigraph{One pound of learning requires ten pounds of commonsense to apply it.}
+	 {\emph{Persian proverb}}
 
 One way to obtain the best performance and scalability is to simply
 hack away until you converge on the best possible parallel program.
@@ -10,9 +14,9 @@ Unfortunately, if your program is other than microscopically tiny,
 the space of possible parallel programs is so huge
 that convergence is not guaranteed in the lifetime of the universe.
 Besides, what exactly is the ``best possible parallel program''?
-After all, Section~\ref{sec:intro:Parallel Programming Goals}
+After all, \cref{sec:intro:Parallel Programming Goals}
 called out no fewer than three parallel-programming goals of
-performance, productivity, and generality,
+\IX{performance}, \IX{productivity}, and \IX{generality},
 and the best possible performance will likely come at a cost in
 terms of productivity and generality.
 We clearly need to be able to make higher-level choices at design
@@ -34,7 +38,7 @@ are speedup,
 contention, overhead, read-to-write ratio, and complexity:
 \begin{description}
 \item[Speedup:]  As noted in
-	Section~\ref{sec:intro:Parallel Programming Goals},
+	\cref{sec:intro:Parallel Programming Goals},
 	increased performance is the major reason
 	to go to all of the time and trouble
 	required to parallelize it.
@@ -45,7 +49,7 @@ contention, overhead, read-to-write ratio, and complexity:
 	program than can be kept busy by that program,
 	the excess CPUs are prevented from doing
 	useful work by contention.
-	This may be lock contention, memory contention, or a host
+	This may be \IX{lock contention}, memory contention, or a host
 	of other performance killers.
 \item[Work-to-Synchronization Ratio:]  A uniprocessor,
 	single\-/threaded, non-preemptible, and non\-/interruptible\footnote{
@@ -60,10 +64,10 @@ contention, overhead, read-to-write ratio, and complexity:
 	work that the program is intended to accomplish.
 	Note that the important measure is the
 	relationship between the synchronization overhead
-	and the overhead of the code in the critical section, with larger
+	and the overhead of the code in the \IX{critical section}, with larger
 	critical sections able to tolerate greater synchronization overhead.
 	The work-to-synchronization ratio is related to
-	the notion of synchronization efficiency.  % @@@ reference.
+	the notion of synchronization efficiency.
 \item[Read-to-Write Ratio:]  A data structure that is
 	rarely updated may often be replicated rather than partitioned,
 	and furthermore may be protected with asymmetric
@@ -72,13 +76,12 @@ contention, overhead, read-to-write ratio, and complexity:
 	reducing overall synchronization overhead.
 	Corresponding optimizations are possible for frequently
 	updated data structures, as discussed in
-	Chapter~\ref{chp:Counting}.
+	\cref{chp:Counting}.
 \item[Complexity:]  A parallel program is more complex than
-	an equivalent sequential program because the parallel
-	program has a much larger state space than does the
-	sequential program, although these larger state spaces
-	can in some cases be easily understood given sufficient
-	regularity and structure.
+	an equivalent sequential program because the parallel program
+	has a much larger state space than does the sequential program,
+	although large state spaces having regular structures can in
+	some cases be easily understood.
 	A parallel programmer must
 	consider synchronization primitives, messaging, locking design,
 	critical-section identification,
@@ -97,7 +100,7 @@ contention, overhead, read-to-write ratio, and complexity:
 	there may be potential sequential optimizations
 	that are cheaper and more effective than parallelization.
 	As noted in
-	Section~\ref{sec:intro:Performance},
+	\cref{sec:intro:Performance},
 	parallelization is but one performance optimization of
 	many, and is furthermore an optimization that applies
 	most readily to CPU-based bottlenecks.
@@ -124,23 +127,22 @@ An understanding of the relationships between these design criteria can
 be very helpful when identifying appropriate design tradeoffs for a
 parallel program.
 \begin{enumerate}
-\item	The less time a program spends in critical sections,
+\item	The less time a program spends in exclusive-lock critical sections,
 	the greater the potential speedup.
 	This is a consequence of Amdahl's Law~\cite{GeneAmdahl1967AmdahlsLaw}
-	and of the fact that only one CPU may execute within a given
-	critical section at a given time.
+	because only one CPU may execute within a given
+	exclusive-lock critical section at a given time.
 
-	More specifically, the fraction of time that the program spends in
-	a given exclusive critical section must be much less than
-	the reciprocal of the number of CPUs for the
-	actual speedup to approach the number of CPUs.
-	For example, a program running on 10 CPUs must spend
-	much less than one tenth of its time in the most-restrictive
-	critical section if it is to scale at all well.
-\item	Contention effects will consume the excess CPU and/or
-	wallclock time should the actual speedup be less than
-	the number of available CPUs.  The
-	larger the gap between the number of CPUs
+	More specifically, for unbounded linear scalability, the fraction
+	of time that the program spends in a given exclusive critical
+	section must decrease as the number of CPUs increases.
+	For example, a program will not scale to 10~CPUs
+	unless it spends much less than one tenth of its time in the
+	most-restrictive exclusive-lock critical section.
+\item	Contention effects consume the excess CPU and/or
+	wallclock time when the actual speedup is less than
+	the number of available CPUs.
+	The larger the gap between the number of CPUs
 	and the actual speedup, the less efficiently the
 	CPUs will be used.
 	Similarly, the greater the desired efficiency, the smaller
@@ -149,15 +151,16 @@ parallel program.
 	high overhead compared to the critical sections
 	that they guard, the best way to improve speedup
 	is to reduce the number of times that the primitives
-	are invoked (perhaps by batching critical sections,
-	using data ownership, using asymmetric primitives
-	(see Section~\ref{chp:Deferred Processing}),
-	or by moving toward a more coarse-grained design
-	such as code locking).
+	are invoked.
+	This can be accomplished by batching critical sections,
+	using data ownership (see \cref{chp:Data Ownership}),
+	using asymmetric primitives
+	(see \cref{chp:Deferred Processing}),
+	or by using a coarse-grained design such as \IXh{code}{locking}.
 \item	If the critical sections have high overhead compared
 	to the primitives guarding them, the best way
 	to improve speedup is to increase parallelism
-	by moving to reader/writer locking, data locking, asymmetric,
+	by moving to reader/writer locking, \IXh{data}{locking}, asymmetric,
 	or data ownership.
 \item	If the critical sections have high overhead compared
 	to the primitives guarding them and the data structure
@@ -169,18 +172,24 @@ parallel program.
 	latencies~\cite{PaulMcKenney2005h}.
 \end{enumerate}
 
-\QuickQuiz{}
+\QuickQuiz{
 	Don't all these problems with critical sections mean that
 	we should just always use
 	non-blocking synchronization~\cite{MauriceHerlihy90a},
 	which don't have critical sections?
-\QuickQuizAnswer{
+}\QuickQuizAnswer{
 	Although non-blocking synchronization can be very useful
-	in some situations, it is no panacea.
+	in some situations, it is no panacea, as discussed in
+	\cref{sec:advsync:Non-Blocking Synchronization}.
 	Also, non-blocking synchronization really does have
 	critical sections, as noted by Josh Triplett.
 	For example, in a non-blocking algorithm based on
 	compare-and-swap operations, the code starting at the
 	initial load and continuing to the compare-and-swap
-	is in many ways analogous to a lock-based critical section.
-} \QuickQuizEnd
+	is analogous to a lock-based critical section.
+}\QuickQuizEnd
+
+It is worth reiterating that contention has many guises, including
+lock contention, memory contention, cache overflow, thermal throttling,
+and much else besides.
+This chapter looks primarily at lock and memory contention.
